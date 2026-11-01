@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { timingSafeEqual } from "node:crypto";
-import { authEnabled, verifySession, SESSION_COOKIE } from "@/lib/auth";
 import { saveStravaCredentials } from "@/lib/strava/token-vault";
 
 export const runtime = "nodejs";
@@ -21,9 +20,11 @@ export async function GET(request: Request) {
     response.cookies.delete("h2g_strava_state");
     return response;
   };
-  if (!authEnabled() || !await verifySession(jar.get(SESSION_COOKIE)?.value ?? null)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  // The login cookie is SameSite=Strict and is intentionally absent on a
+  // top-level redirect from strava.com. The 10-minute HttpOnly SameSite=Lax
+  // OAuth state cookie was issued only by the authenticated /connect route.
+  // Its unpredictable, constant-time-checked value binds this callback to
+  // that already-authenticated initiation without relaxing global sessions.
   const stored = jar.get("h2g_strava_state")?.value ?? "";
   const state = url.searchParams.get("state") ?? "";
   if (!stored || !state || !constantEqual(stored, state)) return redirect("invalid-state");
