@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const jar = await cookies();
   const redirect = (outcome: string) => {
-    const response = NextResponse.redirect(new URL(`/settings?strava=${outcome}`, url.origin));
+    const response = NextResponse.redirect(new URL(`/strava?strava=${outcome}`, url.origin));
     response.cookies.delete("h2g_strava_state");
     return response;
   };
