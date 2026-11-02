@@ -57,7 +57,7 @@ export async function GET() {
       differences: {
         start_seconds: garmin.start_date && hevy.start_date
           ? Math.abs(Date.parse(garmin.start_date) - Date.parse(hevy.start_date)) / 1000 : null,
-        elapsed_seconds: Number.isFinite(garmin.elapsed_time) && Number.isFinite(hevy.elapsed_time)
+        elapsed_seconds: typeof garmin.elapsed_time === "number" && typeof hevy.elapsed_time === "number"
           ? Math.abs((garmin.elapsed_time as number) - (hevy.elapsed_time as number)) : null,
       },
       warning: "Matching start and duration alone does not prove source; no activities were changed.",
