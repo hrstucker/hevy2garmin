@@ -110,7 +110,7 @@ export async function autoReconcileStrava(sql:Sql=getDb()):Promise<AutoReconcile
       if(!updated)return {mode:"blocked",hevyId,
         reason:"Strava accepted upload but state could not be recorded; manual reconciliation required"};
       return {mode:"submitted",hevyId,uploadId:receipt.id,status:receipt.status};
-    }catch(e){
+    }catch(_e){
       await markStravaUnknown(sql,hevyId).catch(()=>{});
       console.error("[strava-auto] uncertain submission; manual reconciliation required",hevyId);
       return {mode:"blocked",hevyId,
