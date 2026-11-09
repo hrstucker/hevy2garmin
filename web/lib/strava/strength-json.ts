@@ -71,7 +71,7 @@ export function buildStrengthJson(input: StrengthInput): StravaStrengthJson {
       continue;
     }
     for (const item of exercise.sets) {
-      if (!item || item.type === "warmup" || item.type === "dropset" && false) continue;
+      if (!item) throw new Error("Invalid exercise set");
       // Include all recorded working, warmup and drop sets except explicitly
       // invalid/skipped sets. Do not transform set weights or repetitions.
       const set: StravaSet = { exercise_type: stravaType };
