@@ -24,8 +24,8 @@ const verified = new Set<string>(VERIFIED_STRAVA_EXERCISES);
 export function supportedStravaType(type: unknown): type is string {
   return typeof type === "string" && verified.has(type);
 }
-/** Only exact user-confirmed equivalences, no generic automatic fallback. */
-export const APPROVED_HEVY_STRAVA_MAP: Record<string,string> = {
+/** Candidate equivalents for manual review only; never applied automatically. */
+export const SUGGESTED_HEVY_STRAVA_MAP: Record<string,string> = {
   "Palof Press (Cabo)": "PALLOF_PRESS",
   "Pallof Press": "PALLOF_PRESS",
   "Tibial Anterior na Polia": "TIBIALIS_RAISE",
