@@ -22,6 +22,8 @@ Its exercise names are an enumerated list, NOT free-form Hevy names.
 - `json-upload.ts` contains **dormant** upload and status functions.
 - Main navigation entry and /strava/workouts source audit.
 - No automatic or user-accessible upload call site.
+- User-editable Strava mappings, per-workout source auditing, JSON preview and download.
+- Independent durable strava_uploads schema and dormant submission-state helpers.
 
 ## Next gates
 1. Confirm Vercel Preview build and tests (currently not verified).
