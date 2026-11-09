@@ -22,9 +22,12 @@ function validDateTime(raw:string|null):Date|null {
 }
 function workoutDay(raw:string|null):string|null {
   const d=validDateTime(raw);
-  return d?new Intl.DateTimeFormat("en-CA", {
+  if(!d)return null;
+  const parts=new Intl.DateTimeFormat("en-US", {
     timeZone:ZONE,year:"numeric",month:"2-digit",day:"2-digit"
-  }).format(d):null;
+  }).formatToParts(d);
+  const field=(kind:string)=>parts.find(p=>p.type===kind)?.value??"";
+  return `${field("year")}-${field("month")}-${field("day")}`;
 }
 function workoutLabel(raw:string|null):string {
   const d=validDateTime(raw);
@@ -50,7 +53,7 @@ export default async function StravaWorkouts({searchParams}:{
     items=rows.map(r=>({
       hevy_id:String(r.hevy_id),title:r.title==null?null:String(r.title),
       garmin_activity_id:r.garmin_activity_id==null?null:String(r.garmin_activity_id),
-      synced_at:r.synced_at==null?null:String(r.synced_at),
+      synced_at:r.synced_at==null?null:r.synced_at instanceof Date?r.synced_at.toISOString():String(r.synced_at),
       workout_start:null,
     }));
     try {
