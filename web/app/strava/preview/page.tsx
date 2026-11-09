@@ -7,11 +7,11 @@ import { prepareConsolidatedExport } from "@/lib/strava/prepare-export";
 export const dynamic = "force-dynamic";
 
 export default async function StravaPreview({searchParams}: {
-  searchParams:Promise<{hevyId?:string;utcOffsetSeconds?:string}>;
+  searchParams:Promise<{hevyId?:string;utcOffsetSeconds?:string;recovery?:string}>;
 }) {
   const params=await searchParams;
   const hevyId=params.hevyId??"";
-  const offset=Number(params.utcOffsetSeconds??"NaN");
+  const offset=Number(params.utcOffsetSeconds??"NaN");\n  const recovery=params.recovery??"";
   let report:Awaited<ReturnType<typeof prepareConsolidatedExport>>|null=null;
   let error="";
   try {
@@ -65,7 +65,28 @@ export default async function StravaPreview({searchParams}: {
             Os pontos ausentes não são preenchidos artificialmente.
           </p>}
         </div>
+        {recovery==="ok" && <p className="text-sm text-teal font-medium">
+          FC da atividade final Garmin recuperada e armazenada.
+        </p>}
+        {recovery==="failed" && <p className="text-sm text-red-400">
+          Não foi possível recuperar o FIT original automaticamente. Nenhuma atividade foi enviada.
+        </p>}
         {preview.reasons.map(reason=><p key={reason} className="text-sm text-amber-400">{reason}</p>)}
+        {!preview.ready && preview.hrSamples===0 && preview.garminActivityId && 
+          <form action="/api/strava/recover-final-hr" method="post">
+            <input type="hidden" name="hevyId" value={hevyId}/>
+            <button type="submit" className="rounded-lg border border-teal px-3 py-2 text-sm text-teal">
+              Recuperar FC da atividade final no Garmin
+            </button>
+            <p className="text-xs text-text-secondary mt-1">
+              Consulta o FIT original e grava somente a FC no cache local.
+              Não altera ou reenvia atividades Garmin/Strava.
+            </p>
+          </form>}
+        {preview.caloriesFromGarminFinalFit!==null &&
+          <p className="text-sm">Calorias confirmadas no FIT final Garmin:
+            {" "}{preview.caloriesFromGarminFinalFit} kcal
+          </p>}
         <Link href={`/strava/audit?hevyId=${encodeURIComponent(hevyId)}`}
           className="inline-block text-teal underline text-sm">
           Ver auditoria detalhada
