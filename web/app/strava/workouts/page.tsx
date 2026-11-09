@@ -10,6 +10,8 @@ interface Item {
   garmin_activity_id:string|null;
   synced_at:string|null;
   workout_start:string|null;
+  strava_status:string|null;
+  strava_activity_id:string|null;
 }
 const ZONE = "America/Sao_Paulo";
 
@@ -47,14 +49,17 @@ export default async function StravaWorkouts({searchParams}:{
   let datesAvailable=true;
   try {
     const sql=getDb();
-    const rows=await sql`SELECT hevy_id,title,garmin_activity_id,synced_at
-      FROM synced_workouts WHERE status='success' AND garmin_activity_id IS NOT NULL
-      ORDER BY synced_at DESC LIMIT 100`;
+    const rows=await sql`SELECT s.hevy_id,s.title,s.garmin_activity_id,s.synced_at,
+      u.status AS strava_status,u.activity_id AS strava_activity_id
+      FROM synced_workouts s LEFT JOIN strava_uploads u ON u.hevy_id=s.hevy_id WHERE s.status='success' AND s.garmin_activity_id IS NOT NULL
+      ORDER BY s.synced_at DESC LIMIT 100`;
     items=rows.map(r=>({
       hevy_id:String(r.hevy_id),title:r.title==null?null:String(r.title),
       garmin_activity_id:r.garmin_activity_id==null?null:String(r.garmin_activity_id),
       synced_at:r.synced_at==null?null:r.synced_at instanceof Date?r.synced_at.toISOString():String(r.synced_at),
       workout_start:null,
+      strava_status:r.strava_status==null?null:String(r.strava_status),
+      strava_activity_id:r.strava_activity_id==null?null:String(r.strava_activity_id),
     }));
     try {
       const workouts=await fetchAllWorkouts();
