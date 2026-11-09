@@ -36,8 +36,8 @@ export default async function StravaWorkouts() {
           <a className="text-sm text-teal underline" href={`/api/strava/source-audit?hevyId=${encodeURIComponent(item.hevy_id)}`}>
             Auditar fontes
           </a>
-          <a className="text-sm text-teal underline" href={`/api/strava/preview-json?hevyId=${encodeURIComponent(item.hevy_id)}&utcOffsetSeconds=-10800`}>
-            Pré-visualizar JSON (UTC−3)
+          <a className="text-sm text-teal underline" href={`/strava/preview?hevyId=${encodeURIComponent(item.hevy_id)}&utcOffsetSeconds=-10800`}>
+            Ver prévia consolidada (UTC−3)
           </a>
         </div>
       </div>)}
