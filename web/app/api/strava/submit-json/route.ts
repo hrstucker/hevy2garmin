@@ -6,6 +6,7 @@ import { getSessionEpoch } from "@/lib/session-epoch";
 import { getDb } from "@/lib/db";
 import { prepareConsolidatedExport } from "@/lib/strava/prepare-export";
 import { getStravaAccessToken } from "@/lib/strava/authenticated-client";
+import { listStravaActivities, findPossibleStrengthDuplicates } from "@/lib/strava/activity-client";
 import { submitStrengthJson } from "@/lib/strava/json-upload";
 import { getStravaUpload, reserveStravaUpload, markStravaSubmitted, markStravaUnknown } from "@/lib/strava/upload-ledger";
 
@@ -64,6 +65,18 @@ export async function POST(request:Request) {
       return NextResponse.json({error:"Preview fingerprint changed; download and confirm again"},{status:409});
     // Authenticate to Strava before taking the durable submission lock.
     const token=await getStravaAccessToken();
+    // Strava native Garmin sync might have already created this strength workout.
+    // Read-only preflight; API failure blocks submission rather than risking a duplicate.
+    const startSeconds=Math.floor(Date.parse(prepared.payload.start_time)/1000);
+    const nearby=await listStravaActivities({
+      accessToken:token,after:startSeconds-601,before:startSeconds+601,
+    });
+    const possibleDuplicates=findPossibleStrengthDuplicates(nearby,prepared.payload.start_time);
+    if(possibleDuplicates.length)
+      return NextResponse.json({
+        error:"Possible existing Strava strength activity at the same workout time; upload blocked",
+        possibleActivityIds:possibleDuplicates.map(a=>String(a.id)),
+      },{status:409});
     const reserved=await reserveStravaUpload(sql,{
       hevyId,garminActivityId:prepared.garminActivityId,sha256,
     });
