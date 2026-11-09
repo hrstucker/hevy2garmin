@@ -48,6 +48,16 @@ export default async function StravaPage({ searchParams }: {
         Ver treinos e auditar dados
       </Link>
     </div>
+    <div className="rounded-xl border border-border bg-surface-elevated p-5 space-y-2">
+      <h2 className="font-semibold">Mapeamento de exercícios</h2>
+      <p className="text-sm text-text-secondary">
+        Escolha equivalências explícitas entre os exercícios do Hevy e o catálogo
+        do Strava. O mapeamento Garmin permanece independente.
+      </p>
+      <Link href="/strava/mappings" className="inline-block text-teal underline">
+        Revisar e salvar mapeamentos Strava
+      </Link>
+    </div>
     <Link href="/settings" className="text-sm text-text-secondary underline">Configurações</Link>
   </main>;
 }
