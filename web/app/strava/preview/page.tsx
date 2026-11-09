@@ -52,6 +52,17 @@ export default async function StravaPreview({searchParams}: {
           Início UTC: {preview.payload.start_time}; duração: {preview.payload.elapsed_time} s;
           séries exportadas: {preview.payload.sets.length}
         </p>}
+        <div className="rounded-md border border-border p-3 mt-2 space-y-1">
+          <p className="text-sm font-medium">Auditoria dos dados fisiológicos</p>
+          <p className="text-xs text-text-secondary">
+            Calorias no histórico local: {preview.caloriesFromSyncLedger ?? "indisponíveis"} kcal.
+            Calorias no JSON: omitidas até confirmar o valor do Garmin consolidado.
+          </p>
+          {preview.hrEndingGapSeconds!==null && <p className="text-xs text-text-secondary">
+            Intervalo sem amostras de FC ao final: {preview.hrEndingGapSeconds} segundos.
+            Os pontos ausentes não são preenchidos artificialmente.
+          </p>}
+        </div>
         {preview.reasons.map(reason=><p key={reason} className="text-sm text-amber-400">{reason}</p>)}
         {preview.ready ?
           <a className="inline-block text-teal underline text-sm" href={download}>
