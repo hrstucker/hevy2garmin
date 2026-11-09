@@ -23,6 +23,20 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
      avg_hr INTEGER,
      status VARCHAR(20) DEFAULT 'success'
    )`,
+  `CREATE TABLE IF NOT EXISTS strava_uploads (
+     hevy_id TEXT PRIMARY KEY,
+     garmin_activity_id TEXT NOT NULL,
+     external_id TEXT NOT NULL UNIQUE,
+     payload_sha256 TEXT NOT NULL,
+     status VARCHAR(24) NOT NULL DEFAULT 'prepared',
+     upload_id TEXT,
+     activity_id TEXT,
+     last_error TEXT,
+     submitted_at TIMESTAMPTZ,
+     completed_at TIMESTAMPTZ,
+     created_at TIMESTAMPTZ DEFAULT NOW(),
+     updated_at TIMESTAMPTZ DEFAULT NOW()
+   )`,
   `CREATE TABLE IF NOT EXISTS sync_log (
      id BIGSERIAL PRIMARY KEY,
      time TIMESTAMPTZ DEFAULT NOW(),
