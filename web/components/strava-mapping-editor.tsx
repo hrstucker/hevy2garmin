@@ -8,9 +8,10 @@ type Props = {
   saved:Record<string,string>;
   suggestions:Record<string,string>;
   supported:readonly string[];
+  caveats:Record<string,string>;
 };
 
-export function StravaMappingEditor({titles,saved,suggestions,supported}:Props) {
+export function StravaMappingEditor({titles,saved,suggestions,supported,caveats}:Props) {
   const [choices,setChoices]=useState<Record<string,string>>(saved);
   const [saving,setSaving]=useState<string|null>(null);
   const [messages,setMessages]=useState<Record<string,string>>({});
@@ -33,8 +34,13 @@ export function StravaMappingEditor({titles,saved,suggestions,supported}:Props) 
     {titles.map(title=><div key={title} className="p-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
       <div>
         <div className="font-medium text-sm">{title}</div>
-        {!saved[title] && suggestions[title] && <div className="text-xs text-text-secondary">
-          Sugestão não aplicada: {suggestions[title]}
+        {!saved[title] && suggestions[title] && <button type="button"
+          className="text-xs text-teal underline text-left"
+          onClick={()=>setChoices(prev=>({...prev,[title]:suggestions[title]}))}>
+          Selecionar sugestão: {suggestions[title]} (ainda não salva)
+        </button>}
+        {caveats[title] && <div className="text-xs text-amber-400 mt-1">
+          Atenção: {caveats[title]}
         </div>}
       </div>
       <label className="text-xs text-text-secondary">
