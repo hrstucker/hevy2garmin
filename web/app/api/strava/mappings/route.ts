@@ -25,9 +25,13 @@ export async function POST(request:Request) {
   if (typeof input.title!=="string" || typeof input.stravaType!=="string")
     return NextResponse.json({error:"Invalid mapping"},{status:400});
   try {
-    await saveStravaMapping(sql,input.title,input.stravaType);
-    return NextResponse.json({saved:true},{headers:{"Cache-Control":"no-store"}});
-  }catch {
-    return NextResponse.json({error:"Unsupported Strava exercise type or database error"},{status:400});
+    const persisted=await saveStravaMapping(sql,input.title,input.stravaType);
+    return NextResponse.json({saved:true,title:input.title,stravaType:persisted},
+      {headers:{"Cache-Control":"no-store"}});
+  }catch (error) {
+    const invalid=error instanceof Error && error.message==="Invalid mapping";
+    console.error("[strava-mappings] mapping write failed",error);
+    return NextResponse.json({error:invalid?"Invalid mapping":"Mapping could not be saved or verified"},
+      {status:invalid?400:503,headers:{"Cache-Control":"no-store"}});
   }
 }
