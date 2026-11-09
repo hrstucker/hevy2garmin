@@ -216,6 +216,13 @@ export async function proxy(req: NextRequest, event?: NextFetchEvent) {
     if (demoMode()) return NextResponse.next();
     return unconfiguredRefusal(req);
   }
+  // Strava redirects from another site. The dashboard cookie is SameSite=Strict,
+  // so it is absent on the OAuth callback. Let ONLY callbacks carrying the
+  // short-lived, HttpOnly SameSite=Lax state cookie reach the route handler.
+  // The handler must verify the state in constant time before token exchange.
+  if (pathname === "/api/strava/callback" && req.cookies.has("h2g_strava_state")) {
+    return NextResponse.next();
+  }
   // Let the epoch endpoint through BEFORE reading the epoch, or currentEpoch()
   // (which fetches it) would recurse into the proxy forever.
   if (pathname === "/api/session-epoch") return NextResponse.next();
