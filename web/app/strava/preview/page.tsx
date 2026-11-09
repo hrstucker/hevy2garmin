@@ -1,4 +1,6 @@
 import Link from "next/link";
+import {createHash} from "node:crypto";
+import {StravaUploadControl} from "@/components/strava-upload-control";
 import { getDb } from "@/lib/db";
 import { prepareConsolidatedExport } from "@/lib/strava/prepare-export";
 
@@ -16,6 +18,8 @@ export default async function StravaPreview({searchParams}: {
     report=await prepareConsolidatedExport(getDb(),hevyId,offset);
   }catch(e){error=e instanceof Error?e.message:"Não foi possível preparar a prévia";}
   const preview=report;
+  const fingerprint=preview?.payload ? createHash("sha256").update(JSON.stringify(preview.payload)).digest("hex") : null;
+  const uploadsEnabled=process.env.STRAVA_UPLOADS_ENABLED==="true" && Boolean(process.env.STRAVA_FIRST_UPLOAD_UTC);
   const download= `/api/strava/preview-json?hevyId=${encodeURIComponent(hevyId)}&utcOffsetSeconds=${offset}&download=1`;
   return <main className="max-w-4xl mx-auto px-4 py-8 space-y-5">
     <Link href="/strava/workouts" className="text-teal text-sm">← Treinos Strava</Link>
@@ -71,6 +75,9 @@ export default async function StravaPreview({searchParams}: {
           </div>)}
         </div>
       </div>
+      {preview.ready && fingerprint && <StravaUploadControl
+        hevyId={hevyId} utcOffsetSeconds={offset} fingerprint={fingerprint}
+        enabled={uploadsEnabled}/>} 
     </>}
   </main>;
 }
