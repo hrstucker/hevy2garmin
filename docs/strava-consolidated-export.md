@@ -100,3 +100,23 @@ The branch adds a separate **read-only Garmin ledger -> Strava** reconciliation 
 **User choice:** keep native Garmin→Strava disabled. For cycling, export a real Garmin Connect activity file and import that file into **Strava** manually (not back into Garmin Connect). Do not tell the user that biking is currently auto-synced.
 
 **Rollout gate:** deploy with automatic writes OFF, confirm build and an authorized dry/disabled response, then approve activation explicitly. Never enable the auto flag solely because the first manual upload worked.
+
+## Two live Strava strength uploads validated on 2026-11-09
+
+- **2026-10-29**: Hevy `288bae08-5152-4aab-b1db-6de9e710ad90`, Garmin `24922545131`, Strava `20921447664`. Existing first upload; never resubmit.
+- **2026-11-05**: Hevy `f3a7ebc1-801c-426f-9c28-bb28ed439a5d`, Garmin `24982080003`, Strava `20922935285`. Final Garmin FIT recovery succeeded with **3,241 genuine timestamped HR samples**, 12 named exercises, 32 sets; Garmin FIT verified 537 kcal while the original sync ledger showed 899 kcal. Strava mobile showed exercises and the original HR profile, mean 96 bpm, max 131 bpm. Duration displayed 1:46:42 versus Garmin 1:46:21 (21-second offset). No synthetic samples/calories were exported.
+- Recovery source is the *already completed* Garmin activity, not an additional watch recording or any Garmin upload. The preview can call a same-origin authenticated recovery action. The future cron automatically tries that read-only FIT fallback only when HR cache and backup are both missing.
+- The two manual tests are excluded by the future-only UTC cutoff. Their `strava_uploads` ledger rows are permanent idempotency guards.
+
+## Production rollout checklist — DO NOT merge/activate blindly
+
+1. Confirm Preview build succeeds and exercise mappings remain complete; the two real uploads are the only approved history tests. Keep **Garmin → Strava native synchronization disabled** to avoid double publication.
+2. Merge the preview feature branch into this repository's `main` only after reviewing the PR and deployment. The Vercel cron declared in `web/vercel.json` only executes in **Production**.
+3. First deploy Production with `STRAVA_AUTO_SYNC_ENABLED` unset or `false`. Confirm `/strava`, authentication, valid Strava OAuth and `/api/strava/auto-status` in a same-origin authenticated session.
+4. Set `STRAVA_AUTO_START_UTC` to the **UTC instant of explicit activation or a later future instant**, never an earlier date used by the manual tests. Set `STRAVA_UPLOADS_ENABLED=true` and `STRAVA_AUTO_SYNC_ENABLED=true` only in the desired Production environment, then redeploy. In Preview, do not expect the Vercel cron to fire.
+5. A workout qualifies only if both Hevy start time and Garmin synchronization completion are at or after the cutoff, and Garmin completion is at least 15 minutes old.
+6. The worker polls prior uploads first; otherwise submits at most one new eligible workout per cron invocation. Strava duplicate detection and the durable unique ledger must succeed before POST. Ambiguous outcomes are never silently retried.
+7. After the first future workout, verify its Strava activity ID, named exercises, loads, sets and actual HR graph. Review automation status for `unknown`, `failed`, or `processing` entries before allowing subsequent activity.
+8. To halt future automatic submissions, set `STRAVA_AUTO_SYNC_ENABLED=false` in Production and redeploy. Do not delete ledger rows or enable native Garmin → Strava concurrently. Existing Strava uploads remain unchanged.
+
+**Distinction:** `STRAVA_ALLOWED_HEVY_ID` and `STRAVA_FIRST_UPLOAD_UTC` guard the one-time *manual* endpoint; they are **not** the automation cutoff. Never assume editing the manual allowed ID activates the cron.
