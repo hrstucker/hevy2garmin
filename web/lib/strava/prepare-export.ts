@@ -20,6 +20,10 @@ export interface ConsolidatedPreview {
   recordedSetCount:number;
   hrSamples:number;
   hrSource:"cache"|"backup"|"unavailable";
+  hrLastSampleSecond:number|null;
+  hrEndingGapSeconds:number|null;
+  caloriesFromSyncLedger:number|null;
+  caloriesExported:false;
   timezoneOffsetSeconds:number;
   reasons:string[];
   payload:StravaStrengthJson|null;
@@ -95,6 +99,10 @@ export async function prepareConsolidatedExport(
     unmappedExercises:unmapped,
     recordedSetCount:exercises.reduce((total,e)=>total+e.sets.length,0),
     hrSamples:samples?.length??0,hrSource,timezoneOffsetSeconds:utcOffsetSeconds,
+    hrLastSampleSecond:samples?.length?Math.max(...samples.map(s=>s.time)):null,
+    hrEndingGapSeconds:null,
+    caloriesFromSyncLedger:typeof sync.calories==="number"?sync.calories:null,
+    caloriesExported:false,
     reasons,payload:null,
   };
   if(reasons.length)return base;
@@ -103,7 +111,11 @@ export async function prepareConsolidatedExport(
     endTime:workout.end_time??"",
     utcOffsetSeconds,exercises,exerciseTypes:mappings,
     hrSamples:samples!,
-    calories:typeof sync.calories==="number"?sync.calories:null,
+    // Database ledger calories are not independently verified as the final Garmin
+    // activity total. Omit instead of attributing an uncertain number to Garmin.
+    calories:null,
   });
-  return {...base,ready:true,payload};
+  const lastSample=base.hrLastSampleSecond;
+  return {...base,ready:true,payload,
+    hrEndingGapSeconds:lastSample===null?null:payload.elapsed_time-lastSample};
 }
