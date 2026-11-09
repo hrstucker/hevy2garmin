@@ -72,7 +72,8 @@ export async function autoReconcileStrava(sql:Sql=getDb()):Promise<AutoReconcile
 
     let prepared;
     try{
-      prepared=await prepareConsolidatedExport(sql,hevyId,-10800,\n        {recoverMissingHrFromGarmin:true});
+      prepared=await prepareConsolidatedExport(sql,hevyId,-10800,
+        {recoverMissingHrFromGarmin:true});
     }catch(e){
       console.error("[strava-auto] preparation failed for",hevyId,e instanceof Error?e.message:"unknown");
       continue;
