@@ -54,3 +54,32 @@ Its exercise names are an enumerated list, NOT free-form Hevy names.
 Preview and Production have distinct STRAVA_CALLBACK_ORIGIN. Both may share
 a database depending on Neon configuration: read/write boundaries must be
 explicit even in Preview. No credentials or tokens in the repository.
+
+## Validated first live test (2026-11-09)
+
+- Hevy workout 288bae08-5152-4aab-b1db-6de9e710ad90, Garmin 24922545131, Strava 20921447664: JSON strength upload accepted and fully processed.
+- Strava displayed all 12 exercises / 32 sets / 300 reps / 15,470 kg and HR graph (99 bpm mean, 127 bpm max). Do not automatically resubmit this activity.
+- Hevy elapsed time 5950 s, final real HR time 5513 s; Strava displays approximately 5513 s, a 437-second gap. No synthetic HR samples should be created; document elapsed separately until a truthful format remedy is tested.
+- The local synced_workouts calories value (834 kcal) was removed from the JSON because its provenance is not confirmed against the final Garmin recording.
+
+## Critical routing decision: cycling vs strength training
+
+Garmin Connect → Strava native sync uploads **all compatible Garmin activities**, not just rides. The documented Garmin permission is for "Activities", not an exercise-specific switch:
+https://support.strava.com/en-us/articles/15401903-garmin-and-strava
+
+When native Garmin → Strava is disabled, Garmin-only rides do not reach Strava via the Hevy-driven export. The Hevy2Garmin Strava writer should NOT be considered a replacement for Garmin-only uploads until a separate Garmin-only activity path exists.
+
+Restoring native Garmin → Strava would automatically send rides, but may also upload strength training before our structured exporter: duplicates may result. The public Strava PUT /activities/{id} updates metadata (name, description, sport type, etc), not the structured sets/streams. Do not plan on upgrading an already imported Garmin Strava activity by PUT-ing sets:
+https://developers.strava.com/docs/reference/
+
+### Safe architecture options
+
+1. **Recommended future direction:** Garmin-only activities (rides, other non-Hevy sports) go through a separately implemented Garmin → Strava path, while Hevy-sourced strength workouts use the proven JSON pipeline. Keep native Garmin → Strava disconnected until that path is implemented and tested. Requires obtaining real Garmin activity source files or data, with duplicate reconciliation and no alteration of the original Garmin source.
+2. Short-term alternative: restore native Garmin → Strava, **disable Hevy2Garmin automatic Strava writes**, and accept that some Garmin-synced strength activities may not contain the same Hevy structured sets, or manually reconcile on a per-activity basis. The app's new preflight detects many existing nearby strength activities and blocks new JSON submissions, but cannot prevent upstream Garmin races or replace those existing sets.
+3. Manually upload rides on Strava while developing option 1, keeping native sync off.
+
+### Protections
+
+- Durable strava_uploads ledger prevents a second Hevy upload when its first upload exists.
+- Before any FUTURE live JSON strength upload, query Strava's recent activities around the workout's start and fail closed if a matching strength-like activity already exists. This is read-only, conservative, and **not a guarantee** against concurrent Garmin sync.
+- No automatic Garmin → Strava connection changes, no deletion/update of imported Strava activities, and no automatic Strava scheduling until mixed-source behavior is implemented and tested.
