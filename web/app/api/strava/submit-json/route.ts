@@ -22,6 +22,10 @@ export async function POST(request:Request) {
     return NextResponse.json({error:"Strava upload disabled"},{status:403});
   if(request.headers.get("origin")!==new URL(request.url).origin)
     return NextResponse.json({error:"Cross-origin request rejected"},{status:403});
+  // First-live-upload defense in depth: a deployment flag cannot enable every workout.
+  const allowedHevyId=process.env.STRAVA_ALLOWED_HEVY_ID;
+  if(!allowedHevyId || allowedHevyId.length>120)
+    return NextResponse.json({error:"Exact first-upload Hevy ID not configured"},{status:503});
   const earliest=process.env.STRAVA_FIRST_UPLOAD_UTC;
   if(!earliest || !Number.isFinite(Date.parse(earliest)))
     return NextResponse.json({error:"Upload cutoff not configured"},{status:503});
@@ -41,6 +45,8 @@ export async function POST(request:Request) {
     input.confirmation!==`UPLOAD:${hevyId}` ||
     typeof input.expectedSha256!=="string" || !/^[a-f0-9]{64}$/.test(input.expectedSha256))
     return NextResponse.json({error:"Explicit identity, UTC offset, fingerprint and confirmation required"},{status:400});
+  if(hevyId!==allowedHevyId)
+    return NextResponse.json({error:"This workout is not authorized for the first upload"},{status:403});
   try {
     const existing=await getStravaUpload(sql,hevyId);
     if(existing) return NextResponse.json({
