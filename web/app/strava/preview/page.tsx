@@ -19,7 +19,9 @@ export default async function StravaPreview({searchParams}: {
   }catch(e){error=e instanceof Error?e.message:"Não foi possível preparar a prévia";}
   const preview=report;
   const fingerprint=preview?.payload ? createHash("sha256").update(JSON.stringify(preview.payload)).digest("hex") : null;
-  const uploadsEnabled=process.env.STRAVA_UPLOADS_ENABLED==="true" && Boolean(process.env.STRAVA_FIRST_UPLOAD_UTC);
+  const uploadsEnabled=process.env.STRAVA_UPLOADS_ENABLED==="true" &&
+    Boolean(process.env.STRAVA_FIRST_UPLOAD_UTC) &&
+    process.env.STRAVA_ALLOWED_HEVY_ID===hevyId;
   const download= `/api/strava/preview-json?hevyId=${encodeURIComponent(hevyId)}&utcOffsetSeconds=${offset}&download=1`;
   return <main className="max-w-4xl mx-auto px-4 py-8 space-y-5">
     <Link href="/strava/workouts" className="text-teal text-sm">← Treinos Strava</Link>
