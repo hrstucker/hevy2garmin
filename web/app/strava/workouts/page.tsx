@@ -122,6 +122,13 @@ export default async function StravaWorkouts({searchParams}:{
           <div className="text-xs text-text-secondary">
             Hevy {item.hevy_id} · Garmin {item.garmin_activity_id}
           </div>
+          <div className={item.strava_status==="ready"?"text-sm font-semibold text-emerald-500":"text-sm text-text-secondary"}>
+            Strava: {item.strava_status==="ready"?"Importado":item.strava_status===null?"Sem envio registrado":item.strava_status}
+            {item.strava_activity_id && (
+              <> · <a className="text-teal underline" href={`https://www.strava.com/activities/${item.strava_activity_id}`}
+                target="_blank" rel="noopener noreferrer">Abrir atividade</a></>
+            )}
+          </div>
         </div>
         <div className="flex flex-col gap-1">
           <a className="text-sm text-teal underline"
