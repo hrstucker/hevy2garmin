@@ -83,3 +83,20 @@ https://developers.strava.com/docs/reference/
 - Durable strava_uploads ledger prevents a second Hevy upload when its first upload exists.
 - Before any FUTURE live JSON strength upload, query Strava's recent activities around the workout's start and fail closed if a matching strength-like activity already exists. This is read-only, conservative, and **not a guarantee** against concurrent Garmin sync.
 - No automatic Garmin → Strava connection changes, no deletion/update of imported Strava activities, and no automatic Strava scheduling until mixed-source behavior is implemented and tested.
+
+## Automatic post-Garmin reconciliation — opt-in (2026-11-09)
+
+The branch adds a separate **read-only Garmin ledger -> Strava** reconciliation worker:
+- `GET /api/cron/strava` requires Bearer `CRON_SECRET`; Vercel invokes it at **11:00 UTC every day** (08:00 São Paulo), only on the deployment where crons are active (production on Vercel).
+- First check a single `submitted/processing` Strava upload; poll and mark its final state.
+- Otherwise inspect the oldest completed Garmin sync **after** an explicit cutoff; require both the original Hevy workout and its Garmin sync timestamp to be newer than the cutoff and a 15-minute minimum since Garmin completion.
+- Reuse the same Hevy sets, Strava mappings and preserved Garmin FC samples as preview. Do not export unverified calories.
+- Check for likely Strava strength duplicates around the recorded start before any new POST; reserve an atomic independent ledger key; submit at most **one** new workout per daily run, with no blind retry after an uncertain outcome.
+- Neither the Garmin merge engine nor Python/GitHub Action is modified. This reconciles the shared database later, avoiding coupling to the external GitHub Action completion.
+- Automatic writes are **OFF by default**, separately from the prior one-time upload flag. Must set `STRAVA_AUTO_SYNC_ENABLED=true`, `STRAVA_UPLOADS_ENABLED=true`, `STRAVA_AUTO_START_UTC=YYYY-MM-DDTHH:MM:SSZ` (a new activation date, NEVER the date of a historical first test). Avoid past-date backfills.
+- Existing `STRAVA_ALLOWED_HEVY_ID` and `STRAVA_FIRST_UPLOAD_UTC` still restrict the *manual* one-workout route only. Auto reconciliation has its own cutoff and keeps its own additional guard.
+- For now the scheduler is daily; a newly completed workout may not be posted until the next run. No changes to native Garmin→Strava settings are made by the application.
+
+**User choice:** keep native Garmin→Strava disabled. For cycling, export a real Garmin Connect activity file and import that file into **Strava** manually (not back into Garmin Connect). Do not tell the user that biking is currently auto-synced.
+
+**Rollout gate:** deploy with automatic writes OFF, confirm build and an authorized dry/disabled response, then approve activation explicitly. Never enable the auto flag solely because the first manual upload worked.
