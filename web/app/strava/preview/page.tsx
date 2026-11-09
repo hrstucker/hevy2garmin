@@ -11,7 +11,8 @@ export default async function StravaPreview({searchParams}: {
 }) {
   const params=await searchParams;
   const hevyId=params.hevyId??"";
-  const offset=Number(params.utcOffsetSeconds??"NaN");\n  const recovery=params.recovery??"";
+  const offset=Number(params.utcOffsetSeconds??"NaN");
+  const recovery=params.recovery??"";
   let report:Awaited<ReturnType<typeof prepareConsolidatedExport>>|null=null;
   let error="";
   try {
