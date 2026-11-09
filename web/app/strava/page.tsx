@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getDb } from "@/lib/db";
+import { autoStravaConfig } from "@/lib/strava/auto-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,7 @@ export default async function StravaPage({ searchParams }: {
 }) {
   const { strava } = await searchParams;
   let connected = false;
+  const auto = autoStravaConfig(process.env);
   try {
     const sql = getDb();
     const rows = await sql`SELECT status FROM platform_credentials WHERE platform='strava' LIMIT 1`;
@@ -31,10 +33,20 @@ export default async function StravaPage({ searchParams }: {
       {strava && <p className="text-xs text-text-secondary">Resultado da autorização: {strava}</p>}
       {!connected && <Link href="/api/strava/connect" className="text-teal underline">Conectar Strava</Link>}
       <div className="border-t border-border pt-3 space-y-1">
-        <p className="font-medium">Envio automático: desativado</p>
+        <p className="font-medium">Envio automático: {auto.enabled?"habilitado por configuração":"desativado"}</p>
         <p className="text-sm text-text-secondary">
-          Nenhum upload ou alteração de atividades está habilitado nesta versão Preview.
-          Primeiro vamos validar exercícios, FC, horários e arquivos gerados.
+          {auto.enabled
+            ? "Somente treinos que comecem e sejam sincronizados com o Garmin após a data de corte são elegíveis. A execução agendada da Vercel funciona em produção, não em Preview."
+            : "Nenhum envio automático ocorre sem ativação explícita. Treinos históricos não são importados automaticamente."}
+        </p>
+        {auto.cutoff && <p className="text-sm text-text-secondary">
+          Data de corte UTC: {auto.cutoff}
+        </p>}
+        {auto.error && <p className="text-sm text-red-400">
+          Configuração inválida: {auto.error}
+        </p>}
+        <p className="text-xs text-text-secondary">
+          Agendamento previsto: 11:00 UTC (08:00 São Paulo), diariamente. O envio manual individual tem autorização separada.
         </p>
       </div>
     </div>
