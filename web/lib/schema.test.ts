@@ -21,7 +21,7 @@ describe("ensureSchema (#475)", () => {
   it("creates the nine original tables and the independent Strava upload ledger", () => {
     const creates = SCHEMA_STATEMENTS.filter((s) => s.startsWith("CREATE TABLE"));
     expect(creates).toHaveLength(SCHEMA_TABLES.length + 1);
-    expect(creates.some((s) => s.includes("IF NOT EXISTS strava_uploads ("))).toBe(true;
+    expect(creates.some((s) => s.includes("IF NOT EXISTS strava_uploads ("))).toBe(true);
     for (const t of SCHEMA_TABLES) expect(creates.some((s) => s.includes(`IF NOT EXISTS ${t} (`))).toBe(true);
     for (const s of SCHEMA_STATEMENTS) expect(s).toMatch(/IF NOT EXISTS/);
   });
