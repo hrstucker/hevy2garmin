@@ -22,7 +22,7 @@ export default async function StravaWorkouts() {
       <h1 className="text-2xl font-bold mt-2">Treinos para o Strava</h1>
       <p className="text-text-secondary text-sm mt-2">
         Histórico Garmin concluído. A auditoria inspeciona fontes e FC em modo somente leitura.
-        Nenhuma atividade será enviada nesta etapa.</p>
+        Nenhuma atividade será enviada nesta etapa. O link de pré-visualização usa UTC−3 (São Paulo) como hipótese explícita: confira o fuso do treino antes de qualquer envio.</p>
     </div>
     {error && <p className="text-sm text-red-400">{error}</p>}
     <div className="rounded-xl border border-border bg-surface-elevated divide-y divide-border">
@@ -32,9 +32,14 @@ export default async function StravaWorkouts() {
           <div className="font-medium">{item.title || "Treino Hevy"}</div>
           <div className="text-xs text-text-secondary mt-1">Hevy {item.hevy_id} · Garmin {item.garmin_activity_id}</div>
         </div>
-        <a className="text-sm text-teal underline" href={`/api/strava/source-audit?hevyId=${encodeURIComponent(item.hevy_id)}`}>
-          Auditar dados (sem envio)
-        </a>
+        <div className="flex flex-col gap-1">
+          <a className="text-sm text-teal underline" href={`/api/strava/source-audit?hevyId=${encodeURIComponent(item.hevy_id)}`}>
+            Auditar fontes
+          </a>
+          <a className="text-sm text-teal underline" href={`/api/strava/preview-json?hevyId=${encodeURIComponent(item.hevy_id)}&utcOffsetSeconds=-10800`}>
+            Pré-visualizar JSON (UTC−3)
+          </a>
+        </div>
       </div>)}
     </div>
   </main>;
