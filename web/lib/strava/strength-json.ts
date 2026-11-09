@@ -4,6 +4,8 @@
  * heart-rate samples, weight, duration, or workout timezone.
  * https://developers.strava.com/docs/uploads/
  */
+import { supportedStravaType } from "./strava-mappings";
+
 export interface SourceSet {
   reps?: number | null;
   weight_kg?: number | null;
@@ -41,7 +43,6 @@ export interface StravaStrengthJson {
 }
 const isFiniteNonnegative = (n: unknown): n is number =>
   typeof n === "number" && Number.isFinite(n) && n >= 0;
-const ALLOWED_TYPE = /^[A-Z][A-Z0-9_]*$/;
 function validateDate(s: string): string {
   if (!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/.test(s)
       || !Number.isFinite(Date.parse(s))) {
@@ -66,7 +67,7 @@ export function buildStrengthJson(input: StrengthInput): StravaStrengthJson {
     if (!exercise || typeof exercise.title !== "string" ||
         !Array.isArray(exercise.sets)) throw new Error("Invalid Hevy exercise");
     const stravaType = input.exerciseTypes[exercise.title];
-    if (!stravaType || !ALLOWED_TYPE.test(stravaType)) {
+    if (!supportedStravaType(stravaType)) {
       missing.add(exercise.title || "(unnamed exercise)");
       continue;
     }
