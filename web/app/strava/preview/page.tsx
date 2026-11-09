@@ -66,6 +66,14 @@ export default async function StravaPreview({searchParams}: {
           </p>}
         </div>
         {preview.reasons.map(reason=><p key={reason} className="text-sm text-amber-400">{reason}</p>)}
+        <Link href={`/api/strava/source-audit?hevyId=${encodeURIComponent(hevyId)}`}
+          className="inline-block text-teal underline text-sm">
+          Auditar fontes detalhadas (abrir dentro do Hevy2Garmin)
+        </Link>
+        <p className="text-xs text-text-secondary">
+          Links externos podem não enviar o cookie de sessão (SameSite=Strict).
+          Para a auditoria autenticada, use este link interno.
+        </p>
         {preview.ready ?
           <a className="inline-block text-teal underline text-sm" href={download}>
             Baixar arquivo JSON consolidado
