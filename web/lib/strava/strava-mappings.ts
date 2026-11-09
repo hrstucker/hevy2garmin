@@ -21,6 +21,7 @@ export const VERIFIED_STRAVA_EXERCISES = [
   "ROWING_MACHINE", "ASSAULT_BIKE", "CABLE_CORE_PRESS", "MACHINE_SEATED_SHOULDER_PRESS",
   "CABLE_LAT_PULLDOWN_CLOSE_GRIP", "CABLE_KICKBACK", "CABLE_LATERAL_RAISE",
   "MACHINE_ISOLATERAL_HIGH_ROW", "MACHINE_HIP_THRUST", "CABLE_HAMMER_CURL",
+  "MACHINE_REAR_DELT_REVERSE_FLY", "SEATED_DIP_MACHINE", "LEG_CURL_GENERIC",
 ] as const;
 
 const verified = new Set<string>(VERIFIED_STRAVA_EXERCISES);
@@ -39,12 +40,16 @@ export const SUGGESTED_HEVY_STRAVA_MAP: Record<string,string> = {
   "Abdominal (Máquina)":"AB_CRUNCH_MACHINE",
   "Extensão Lombar (Máquina)":"MACHINE_BACK_EXTENSION",
   "Tibial Anterior na Polia":"TIBIALIS_RAISE",
+  "Crucifixo Invertido (Máquina)":"MACHINE_REAR_DELT_REVERSE_FLY",
+  "Mergulho Sentado (Máquina)":"SEATED_DIP_MACHINE",
+  "Mesa Flexora (Máquina)":"LEG_CURL_GENERIC",
   // "Esteira" is intentionally NOT suggested: could be walking or running.
   "Palof Press (Cabo)":"PALLOF_PRESS",
   "Pallof Press":"PALLOF_PRESS",
 };
 export const MAPPING_CAVEATS: Record<string,string> = {
   "Bicicleta Horizontal":"Genérico: Strava não distingue bicicleta horizontal nesse catálogo.",
+  "Mesa Flexora (Máquina)":"LEG_CURL_GENERIC preserva a flexão do joelho, mas não identifica que a máquina é deitada.",
   "Elevação Lateral (Máquina)":"Genérico: não identifica especificamente a máquina.",
   "Esteira":"Confirme se foi corrida ou caminhada. Não escolher RUNNING para caminhada.",
   "Tração Vertical (Máquina)":"LAT_PULLDOWN pressupõe uma puxada vertical; confirme a execução.",
