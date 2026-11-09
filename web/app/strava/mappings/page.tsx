@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getDb } from "@/lib/db";
 import { fetchAllWorkouts, type HevyWorkout } from "@/lib/hevy-sync";
 import { loadStravaMappings } from "@/lib/strava/mapping-store";
-import { SUGGESTED_HEVY_STRAVA_MAP, VERIFIED_STRAVA_EXERCISES } from "@/lib/strava/strava-mappings";
+import { SUGGESTED_HEVY_STRAVA_MAP, VERIFIED_STRAVA_EXERCISES, MAPPING_CAVEATS } from "@/lib/strava/strava-mappings";
 import { StravaMappingEditor } from "@/components/strava-mapping-editor";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +40,6 @@ export default async function StravaMappings() {
     </div>
     {error && <p className="text-red-400 text-sm">{error}</p>}
     <StravaMappingEditor titles={titles} saved={saved}
-      suggestions={SUGGESTED_HEVY_STRAVA_MAP} supported={VERIFIED_STRAVA_EXERCISES}/>
+      suggestions={SUGGESTED_HEVY_STRAVA_MAP} caveats={MAPPING_CAVEATS} supported={VERIFIED_STRAVA_EXERCISES}/>
   </main>;
 }
