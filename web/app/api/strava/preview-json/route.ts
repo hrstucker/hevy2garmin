@@ -6,7 +6,7 @@ import { getDb } from "@/lib/db";
 import { fetchAllWorkouts, type HevyWorkout } from "@/lib/hevy-sync";
 import { cachedHr, loadHrBackup } from "@/lib/hr-store";
 import { buildStrengthJson, type SourceExercise } from "@/lib/strava/strength-json";
-import { APPROVED_HEVY_STRAVA_MAP } from "@/lib/strava/strava-mappings";
+import { loadStravaMappings } from "@/lib/strava/mapping-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,14 +58,15 @@ export async function GET(request:Request) {
     const workout=workouts.find((w:HevyWorkout)=>w.id===hevyId);
     if (!workout) return NextResponse.json({error:"Hevy workout unavailable"},{status:404});
     const exercises=exerciseData(workout);
-    const unmapped=[...new Set(exercises.map(e=>e.title).filter(t=>!APPROVED_HEVY_STRAVA_MAP[t]))];
+    const mappings=await loadStravaMappings(sql);
+    const unmapped=[...new Set(exercises.map(e=>e.title).filter(t=>!mappings[t]))];
     const samples=await cachedHr(sql,hevyId) ??
       await loadHrBackup(sql,{id:hevyId,start_time:workout.start_time,end_time:workout.end_time});
     const diagnostics={
       mode:"read_only", changes_made:false,hevyId,garminActivityId:String(linked.garmin_activity_id),
       name:workout.title??linked.title??"Treino",sets:exercises.reduce((n,e)=>n+e.sets.length,0),
       exercises:exercises.map(e=>({title:e.title,sets:e.sets.length,
-        mappedTo:APPROVED_HEVY_STRAVA_MAP[e.title]??null})),
+        mappedTo:mappings[e.title]??null})),
       unmappedExercises:unmapped,hrSamples:samples?.length??0,
       source:"Hevy workouts + saved Garmin HR cache/backup + Garmin sync ledger",
       timezoneOffsetSeconds:offset,
@@ -80,7 +81,7 @@ export async function GET(request:Request) {
       startTime:workout.start_time??"",
       endTime:workout.end_time??"",
       utcOffsetSeconds:offset,
-      exercises,exerciseTypes:APPROVED_HEVY_STRAVA_MAP,
+      exercises,exerciseTypes:mappings,
       hrSamples:samples,
       calories:typeof linked.calories==="number"?linked.calories:null,
     });
