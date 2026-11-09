@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: "/routines", label: "Routines", icon: "◱" },
   { href: "/mappings", label: "Mappings", icon: "⇄" },
   { href: "/history", label: "History", icon: "◷" },
+  { href: "/strava", label: "Strava", icon: "↗" },
   { href: "/settings", label: "Settings", icon: "⚙" },
   { href: "/setup", label: "Setup", icon: "⇆" },
 ];
