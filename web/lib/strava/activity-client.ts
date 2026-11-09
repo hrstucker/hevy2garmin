@@ -13,6 +13,7 @@ export interface StravaActivityCandidate {
   elapsed_time: number;
   name: string;
   device_name?: string | null;
+  sport_type?: string | null;
 }
 
 interface StravaTokenResponse {
@@ -110,4 +111,23 @@ export async function updateStravaActivityMetadata(input: {
     cache: "no-store",
   });
   await requireOk(response, "activity metadata update");
+}
+
+/**
+ * Conservative duplicate preflight for a new Hevy strength upload.
+ * Time alone is not an identity; the check intentionally errs toward blocking
+ * any nearby strength session until an operator reconciles it. It does not
+ * mutate the Strava activity, and cannot eliminate races with Garmin sync.
+ */
+export function findPossibleStrengthDuplicates(
+  activities:StravaActivityCandidate[],startTime:string,toleranceSeconds=600,
+):StravaActivityCandidate[] {
+  const target=Date.parse(startTime);
+  if(!Number.isFinite(target))throw new Error("Invalid expected start time");
+  const strengthTypes=new Set(["WeightTraining","Workout","Crossfit","HighIntensityIntervalTraining"]);
+  return activities.filter(a=>{
+    const actual=Date.parse(a.start_date);
+    return Number.isFinite(actual) && Math.abs(actual-target)<=toleranceSeconds*1000 &&
+      (strengthTypes.has(a.sport_type??"") || (a.sport_type==null && /treino|workout|muscula|strength/i.test(a.name)));
+  });
 }
