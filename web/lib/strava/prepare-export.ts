@@ -7,6 +7,7 @@ import { fetchAllWorkouts, type HevyWorkout } from "@/lib/hevy-sync";
 import { cachedHr, loadHrBackup } from "@/lib/hr-store";
 import { buildStrengthJson, type SourceExercise, type StravaStrengthJson } from "./strength-json";
 import { loadStravaMappings } from "./mapping-store";
+import {recoverAndCacheFinalGarminHr} from "./garmin-final-recovery";
 
 export interface ConsolidatedPreview {
   mode:"read_only";
@@ -24,6 +25,7 @@ export interface ConsolidatedPreview {
   hrEndingGapSeconds:number|null;
   caloriesFromSyncLedger:number|null;
   caloriesExported:false;
+  caloriesFromGarminFinalFit:number|null;
   timezoneOffsetSeconds:number;
   reasons:string[];
   payload:StravaStrengthJson|null;
@@ -61,6 +63,7 @@ export function extractSourceExercises(workout:HevyWorkout):SourceExercise[] {
 
 export async function prepareConsolidatedExport(
   sql:ReturnType<typeof getDb>,hevyId:string,utcOffsetSeconds:number,
+  options:{recoverMissingHrFromGarmin?:boolean}={},
 ):Promise<ConsolidatedPreview> {
   if(!hevyId || hevyId.length>120 || !Number.isInteger(utcOffsetSeconds) ||
     Math.abs(utcOffsetSeconds)>50400 || utcOffsetSeconds%60!==0)
@@ -79,10 +82,29 @@ export async function prepareConsolidatedExport(
   const exercises=extractSourceExercises(workout);
   const mappings=await loadStravaMappings(sql);
   const unmapped=[...new Set(exercises.map(e=>e.title).filter(t=>!mappings[t]))];
-  const cached=await cachedHr(sql,hevyId);
-  const backedUp=await loadHrBackup(sql,{
+  let cached=await cachedHr(sql,hevyId);
+  let backedUp=await loadHrBackup(sql,{
     id:hevyId,start_time:workout.start_time,end_time:workout.end_time,
   });
+  if(!cached?.length && !backedUp?.length && options.recoverMissingHrFromGarmin){
+    // The FINAL Garmin activity is the source of truth when caches are empty.
+    // Strict failure: no upload if the authenticated read or FIT parse fails.
+    await recoverAndCacheFinalGarminHr(sql,{
+      hevyId,garminActivityId:String(sync.garmin_activity_id),workout
+    });
+    cached=await cachedHr(sql,hevyId);
+    backedUp=await loadHrBackup(sql,{
+      id:hevyId,start_time:workout.start_time,end_time:workout.end_time
+    });
+  }
+  const finalFitRows=await sql`SELECT value FROM app_cache
+    WHERE key=${"garmin_final_fit_"+hevyId} LIMIT 1`.catch(()=>[]);
+  const finalFitRaw=finalFitRows[0]?.value;
+  const finalFit=finalFitRaw && typeof finalFitRaw==="object" ?
+    finalFitRaw as Record<string,unknown>:null;
+  const verifiedCalories=finalFit?.garminActivityId===String(sync.garmin_activity_id) &&
+    typeof finalFit.calories==="number" &&
+    Number.isFinite(finalFit.calories)?finalFit.calories:null;
   // Preserve the denser original Garmin timeline when both caches exist.
   const fromBackup=(backedUp?.length??0)>(cached?.length??0);
   const samples=fromBackup?backedUp:cached;
@@ -102,7 +124,7 @@ export async function prepareConsolidatedExport(
     hrLastSampleSecond:samples?.length?Math.max(...samples.map(s=>s.time)):null,
     hrEndingGapSeconds:null,
     caloriesFromSyncLedger:typeof sync.calories==="number"?sync.calories:null,
-    caloriesExported:false,
+    caloriesExported:false,caloriesFromGarminFinalFit:verifiedCalories,
     reasons,payload:null,
   };
   if(reasons.length)return base;
