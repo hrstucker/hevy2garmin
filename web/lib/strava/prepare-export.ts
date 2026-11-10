@@ -120,7 +120,21 @@ export async function prepareConsolidatedExport(
   const hrSource= samples?.length ? (fromBackup?"backup":"cache") : "unavailable";
   const reasons:string[]=[];
   if(unmapped.length) reasons.push("Some Hevy exercises have no confirmed Strava mapping");
-  const hrVerifiedAbsent=!samples?.length && confirmedNoHr();
+  // A manually uploaded watch FIT is an independently verified source, not
+  // proof that the Garmin Connect consolidated FIT contained no HR.
+  const manualRows=await sql`SELECT value FROM app_cache
+    WHERE key=${"manual_watch_fit_"+hevyId} LIMIT 1`;
+  const manualRaw=manualRows[0]?.value;
+  const manual=manualRaw && typeof manualRaw==="object"?
+    manualRaw as Record<string,unknown>:null;
+  const manualAbsent=manual?.source==="manual_watch_fit" &&
+    manual?.hevyId===hevyId &&
+    manual?.garminActivityId===String(sync.garmin_activity_id) &&
+    manual?.samples===0 && typeof manual?.sha256==="string" &&
+    /^[a-f0-9]{64}$/.test(manual.sha256) &&
+    typeof manual?.fitStartUtc==="string" &&
+    Math.abs(Date.parse(manual.fitStartUtc)-Date.parse(workout.start_time??""))<=600000;
+  const hrVerifiedAbsent=!samples?.length && (confirmedNoHr() || manualAbsent);
   if(!samples?.length && !hrVerifiedAbsent)
     reasons.push("Garmin heart-rate source not yet verified; run recovery before export");
 
