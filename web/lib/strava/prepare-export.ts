@@ -21,6 +21,7 @@ export interface ConsolidatedPreview {
   recordedSetCount:number;
   hrSamples:number;
   hrSource:"cache"|"backup"|"unavailable";
+  hrVerifiedAbsent:boolean;
   hrLastSampleSecond:number|null;
   hrEndingGapSeconds:number|null;
   caloriesFromSyncLedger:number|null;
@@ -86,9 +87,21 @@ export async function prepareConsolidatedExport(
   let backedUp=await loadHrBackup(sql,{
     id:hevyId,start_time:workout.start_time,end_time:workout.end_time,
   });
-  if(!cached?.length && !backedUp?.length && options.recoverMissingHrFromGarmin){
-    // The FINAL Garmin activity is the source of truth when caches are empty.
-    // Strict failure: no upload if the authenticated read or FIT parse fails.
+  // Only a successfully inspected final Garmin FIT can confirm no HR.
+  const finalFitKey="garmin_final_fit_"+hevyId;
+  const readFinalFit=async()=>{
+    const rows=await sql`SELECT value FROM app_cache
+      WHERE key=${finalFitKey} LIMIT 1`;
+    const raw=rows[0]?.value;
+    return raw && typeof raw==="object" ? raw as Record<string,unknown> : null;
+  };
+  let finalFit=await readFinalFit();
+  const confirmedNoHr=()=>finalFit?.source==="garmin_final_fit" &&
+    finalFit?.garminActivityId===String(sync.garmin_activity_id) &&
+    finalFit?.samples===0;
+  if(!cached?.length && !backedUp?.length &&
+     !confirmedNoHr() && options.recoverMissingHrFromGarmin){
+    // Failed downloads/parses stop an upload, never masquerade as no HR.
     await recoverAndCacheFinalGarminHr(sql,{
       hevyId,garminActivityId:String(sync.garmin_activity_id),workout
     });
@@ -96,12 +109,8 @@ export async function prepareConsolidatedExport(
     backedUp=await loadHrBackup(sql,{
       id:hevyId,start_time:workout.start_time,end_time:workout.end_time
     });
+    finalFit=await readFinalFit();
   }
-  const finalFitRows=await sql`SELECT value FROM app_cache
-    WHERE key=${"garmin_final_fit_"+hevyId} LIMIT 1`.catch(()=>[]);
-  const finalFitRaw=finalFitRows[0]?.value;
-  const finalFit=finalFitRaw && typeof finalFitRaw==="object" ?
-    finalFitRaw as Record<string,unknown>:null;
   const verifiedCalories=finalFit?.garminActivityId===String(sync.garmin_activity_id) &&
     typeof finalFit.calories==="number" &&
     Number.isFinite(finalFit.calories)?finalFit.calories:null;
@@ -111,7 +120,9 @@ export async function prepareConsolidatedExport(
   const hrSource= samples?.length ? (fromBackup?"backup":"cache") : "unavailable";
   const reasons:string[]=[];
   if(unmapped.length) reasons.push("Some Hevy exercises have no confirmed Strava mapping");
-  if(!samples?.length) reasons.push("No timestamped Garmin heart-rate samples available");
+  const hrVerifiedAbsent=!samples?.length && confirmedNoHr();
+  if(!samples?.length && !hrVerifiedAbsent)
+    reasons.push("Garmin heart-rate source not yet verified; run recovery before export");
 
   const base:ConsolidatedPreview={
     mode:"read_only",changes_made:false,ready:false,hevyId,
@@ -120,7 +131,7 @@ export async function prepareConsolidatedExport(
     exercises:exercises.map(e=>({title:e.title,sets:e.sets.length,mappedTo:mappings[e.title]??null})),
     unmappedExercises:unmapped,
     recordedSetCount:exercises.reduce((total,e)=>total+e.sets.length,0),
-    hrSamples:samples?.length??0,hrSource,timezoneOffsetSeconds:utcOffsetSeconds,
+    hrSamples:samples?.length??0,hrSource,hrVerifiedAbsent,timezoneOffsetSeconds:utcOffsetSeconds,
     hrLastSampleSecond:samples?.length?Math.max(...samples.map(s=>s.time)):null,
     hrEndingGapSeconds:null,
     caloriesFromSyncLedger:typeof sync.calories==="number"?sync.calories:null,
@@ -132,7 +143,7 @@ export async function prepareConsolidatedExport(
     startTime:workout.start_time??"",
     endTime:workout.end_time??"",
     utcOffsetSeconds,exercises,exerciseTypes:mappings,
-    hrSamples:samples!,
+    hrSamples:samples??[],
     // Database ledger calories are not independently verified as the final Garmin
     // activity total. Omit instead of attributing an uncertain number to Garmin.
     calories:null,
