@@ -35,7 +35,7 @@ export function HistoricalReview({items}:{items:HistoricalItem[]}){
       setReports(prev=>({...prev,[item.hevyId]:value}));
       setApproved(prev=>({...prev,[item.hevyId]:false}));
     }catch{
-      setReports(prev=>({...prev,[item.hevyId]:{ready:false,error:"Não foi possível consultar o servidor"}]}));
+      setReports(prev=>({...prev,[item.hevyId]:{ready:false,error:"Não foi possível consultar o servidor"}}));
     }finally{setBusy(null);}
   }
   const imported=items.filter(i=>i.ledgerStatus==="ready").length;
