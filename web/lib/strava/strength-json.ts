@@ -39,7 +39,7 @@ export interface StravaStrengthJson {
   total_calories?: number;
   creator: { name: string };
   sets: StravaSet[];
-  streams: { time: number[]; heartrate: number[] };
+  streams?: { time: number[]; heartrate: number[] };
 }
 const isFiniteNonnegative = (n: unknown): n is number =>
   typeof n === "number" && Number.isFinite(n) && n >= 0;
@@ -102,8 +102,8 @@ export function buildStrengthJson(input: StrengthInput): StravaStrengthJson {
   }
   if (missing.size) throw new Error("Unmapped Strava exercises: " + [...missing].join(", "));
   if (!outputSets.length) throw new Error("No valid sets");
-  if (!Array.isArray(input.hrSamples) || !input.hrSamples.length)
-    throw new Error("Missing timestamped Garmin heart-rate data");
+  if (!Array.isArray(input.hrSamples))
+    throw new Error("Invalid heart-rate sample collection");
   const sorted = [...input.hrSamples].sort((a,b)=>a.time-b.time);
   const time: number[] = [], heartrate: number[] = [];
   for (const sample of sorted) {
@@ -116,7 +116,8 @@ export function buildStrengthJson(input: StrengthInput): StravaStrengthJson {
   const doc: StravaStrengthJson = {
     version: "1.0", start_time:start, utc_offset:input.utcOffsetSeconds,
     elapsed_time:elapsed, creator:{name:"Hevy2Garmin"},
-    sets: outputSets, streams:{time,heartrate},
+    sets: outputSets,
+    ...(time.length ? {streams:{time,heartrate}} : {}),
   };
   if (input.calories != null) {
     if (!Number.isSafeInteger(input.calories) || input.calories < 0)
