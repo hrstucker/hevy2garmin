@@ -45,11 +45,12 @@ export default async function HistoricalStravaPage(){
       acontece individualmente na auditoria. A aprovação é explícita por treino;
       não existe importação histórica agendada ou em massa sem revisão.
     </p>
-    <p className="text-sm text-amber-400">
-      Os envios históricos precisam de STRAVA_HISTORICAL_UPLOADS_ENABLED=true em produção.
-      Essa configuração é independente da rotina automática dos treinos futuros.
+    <p className="text-sm text-text-secondary">
+      {process.env.STRAVA_HISTORICAL_UPLOADS_ENABLED==="true"
+        ?"Importação histórica habilitada neste deployment. A auditoria não envia atividades."
+        :"Importação histórica desabilitada neste deployment. É possível auditar sem enviar."}
     </p>
     {error?<p className="text-red-400">{error}</p>:
-      <HistoricalReview items={items}/>}
+      <HistoricalReview items={items} uploadsEnabled={process.env.STRAVA_HISTORICAL_UPLOADS_ENABLED==="true"}/>}
   </main>;
 }
