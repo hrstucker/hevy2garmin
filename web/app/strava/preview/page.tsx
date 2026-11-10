@@ -66,6 +66,9 @@ export default async function StravaPreview({searchParams}: {
             Os pontos ausentes não são preenchidos artificialmente.
           </p>}
         </div>
+        {preview.hrVerifiedAbsent && <p className="text-sm text-amber-400 font-medium">
+          FIT final do Garmin auditado: sem medições reais de FC. O treino pode ser exportado sem FC, preservando séries e cargas.
+        </p>}
         {recovery==="ok" && <p className="text-sm text-teal font-medium">
           FC da atividade final Garmin recuperada e armazenada.
         </p>}
@@ -73,7 +76,7 @@ export default async function StravaPreview({searchParams}: {
           Não foi possível recuperar o FIT original automaticamente. Nenhuma atividade foi enviada.
         </p>}
         {preview.reasons.map(reason=><p key={reason} className="text-sm text-amber-400">{reason}</p>)}
-        {!preview.ready && preview.hrSamples===0 && preview.garminActivityId && 
+        {!preview.ready && preview.hrSamples===0 && !preview.hrVerifiedAbsent && preview.garminActivityId && 
           <form action="/api/strava/recover-final-hr" method="post">
             <input type="hidden" name="hevyId" value={hevyId}/>
             <button type="submit" className="rounded-lg border border-teal px-3 py-2 text-sm text-teal">
