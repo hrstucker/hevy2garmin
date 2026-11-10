@@ -61,6 +61,16 @@ export default async function StravaPage({ searchParams }: {
       </Link>
     </div>
     <div className="rounded-xl border border-border bg-surface-elevated p-5 space-y-2">
+      <h2 className="font-semibold">Reconciliação histórica</h2>
+      <p className="text-sm text-text-secondary">
+        Auditoria controlada dos treinos anteriores ao corte da sincronização automática,
+        com proteção contra duplicações e aprovação individual.
+      </p>
+      <Link href="/strava/historical" className="inline-block text-teal underline">
+        Auditar treinos históricos
+      </Link>
+    </div>
+    <div className="rounded-xl border border-border bg-surface-elevated p-5 space-y-2">
       <h2 className="font-semibold">Mapeamento de exercícios</h2>
       <p className="text-sm text-text-secondary">
         Escolha equivalências explícitas entre os exercícios do Hevy e o catálogo
