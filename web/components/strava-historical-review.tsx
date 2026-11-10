@@ -8,10 +8,11 @@ export type HistoricalItem={
 type Audit={
   ready?:boolean;code?:string;error?:string;status?:string;
   fingerprint?:string;sets?:number;hrSamples?:number;
+  hrVerifiedAbsent?:boolean;hrSource?:string;
   possibleActivityIds?:string[];reasons?:string[];
   uploadId?:string;submitted?:boolean;stravaActivityId?:string|null;
 };
-type Outcome="ready"|"blocked"|"accepted"|"completed"|"halted";
+type Outcome="ready"|"blocked"|"pending"|"accepted"|"completed"|"halted";
 const wait=(ms:number)=>new Promise<void>(resolve=>setTimeout(resolve,ms));
 const textError=(r:Audit)=>[r.error??"Auditoria bloqueada",...(r.reasons??[])].join("; ");
 
@@ -19,7 +20,7 @@ const textError=(r:Audit)=>[r.error??"Auditoria bloqueada",...(r.reasons??[])].j
  * idempotency reservation. A bulk click is NOT a server-side backfill job.
  * Sequential client requests make failures visible and stop on ambiguity.
  */
-export function HistoricalReview({items}:{items:HistoricalItem[]}){
+export function HistoricalReview({items,uploadsEnabled}:{items:HistoricalItem[];uploadsEnabled:boolean}){
   const [reports,setReports]=useState<Record<string,Audit>>({});
   const [approved,setApproved]=useState<Record<string,boolean>>({});
   const [auditComplete,setAuditComplete]=useState(false);
@@ -87,7 +88,7 @@ export function HistoricalReview({items}:{items:HistoricalItem[]}){
         try{
           const audit=await api(item.hevyId,"audit");
           next[item.hevyId]=audit;
-          state[item.hevyId]=audit.ready?"ready":"blocked";
+          state[item.hevyId]=audit.ready?"ready":audit.code==="verification_pending"?"pending":"blocked";
           setReports(prev=>({...prev,[item.hevyId]:audit}));
           setOutcomes(prev=>({...prev,[item.hevyId]:state[item.hevyId]}));
           // If OAuth/DB/network is down, don't mislabel the remaining sessions as ready.
@@ -105,15 +106,17 @@ export function HistoricalReview({items}:{items:HistoricalItem[]}){
         }
       }
       const ready=Object.values(next).filter(r=>r.ready).length;
+      const pending=Object.values(next).filter(r=>r.code==="verification_pending").length;
+      const blocked=candidates.length-ready-pending;
       setAuditComplete(true);
-      setBulkText(`Auditoria concluída: ${ready} prontos, ${candidates.length-ready} bloqueados ou pendentes e ${items.length-candidates.length} já registrados no Strava. Confira os resultados antes do envio.`);
+      setBulkText(`Auditoria concluída: ${ready} prontos, ${pending} aguardando verificação Garmin, ${blocked} com outras pendências e ${items.length-candidates.length} já registrados no Strava. Confira os resultados antes do envio.`);
     }finally{
       runLock.current=false;setBulkMode("idle");
     }
   }
 
   async function sendAll(){
-    if(runLock.current||!bulkApproved||!auditComplete)return;
+    if(runLock.current||!bulkApproved||!auditComplete||!uploadsEnabled)return;
     const selected=items.filter(i=>!i.ledgerStatus&&outcomes[i.hevyId]==="ready"&&reports[i.hevyId]?.ready&&reports[i.hevyId]?.fingerprint);
     if(!selected.length)return;
     runLock.current=true;setBulkMode("sending");setBulkApproved(false);
@@ -160,7 +163,7 @@ export function HistoricalReview({items}:{items:HistoricalItem[]}){
     try{
       const report=await api(item.hevyId,operation,reports[item.hevyId]?.fingerprint);
       setReports(prev=>({...prev,[item.hevyId]:report}));
-      setOutcomes(prev=>({...prev,[item.hevyId]:report.submitted?"accepted":report.ready?"ready":"blocked"}));
+      setOutcomes(prev=>({...prev,[item.hevyId]:report.submitted?"accepted":report.ready?"ready":report.code==="verification_pending"?"pending":"blocked"}));
     }catch{
       const error={ready:false,error:"Falha de rede; verifique Strava antes de repetir."};
       setReports(prev=>({...prev,[item.hevyId]:error}));
@@ -196,17 +199,17 @@ export function HistoricalReview({items}:{items:HistoricalItem[]}){
           como prontos. Entendo que cada atividade será enviada uma vez, em sequência,
           sem reenvio automático em caso de falha.</span>
         </label>
-        <button type="button" disabled={locked||!bulkApproved}
+        <button type="button" disabled={locked||!bulkApproved||!uploadsEnabled}
           onClick={()=>void sendAll()}
           className="rounded-lg bg-teal px-4 py-2 font-medium text-black disabled:opacity-40">
-          {bulkMode==="sending"?"Enviando lote…":`2. Importar {ready.length} treinos aprovados`}
+          {bulkMode==="sending"?"Enviando lote…":`2. Importar ${ready.length} treinos aprovados`}
         </button>
       </div>}
       {bulkText && <p role="status" className="text-sm font-medium">{bulkText}</p>}
       <p className="text-xs text-text-secondary">
         A execução depende desta página aberta. Se a conexão cair ou o Strava não confirmar
         um envio, o lote para. Nenhuma solicitação de envio é repetida automaticamente.
-        O controle STRAVA_HISTORICAL_UPLOADS_ENABLED precisa estar ativo na produção.
+        {uploadsEnabled?"Envios históricos habilitados neste deployment.":"Envios históricos desabilitados neste deployment."}
       </p>
     </section>
     <div className="divide-y divide-border rounded-xl border border-border bg-surface-elevated">
@@ -240,7 +243,9 @@ export function HistoricalReview({items}:{items:HistoricalItem[]}){
                 Envio aceito pelo Strava (upload {r.uploadId??"registrado"}).
                 {r.status==="ready"?" Processamento concluído.":" Verifique o processamento."}
               </p>:r.ready?<p className="text-teal">
-                Pronto: {r.sets} séries, {r.hrSamples} amostras de FC. Consulta de duplicações realizada.
+                Pronto: {r.sets} séries. {r.hrVerifiedAbsent
+                  ?"Sem FC, ausência confirmada no FIT Garmin; exportação sem frequência cardíaca autorizada."
+                  :`${r.hrSamples} amostras de FC disponíveis.`} Consulta de duplicações realizada.
               </p>:<p className="text-amber-400">
                 {textError(r)} {r.possibleActivityIds?.length?
                   ` — Possíveis atividades: ${r.possibleActivityIds.join(", ")}`:""}
@@ -251,7 +256,7 @@ export function HistoricalReview({items}:{items:HistoricalItem[]}){
                     onChange={e=>setApproved(prev=>({...prev,[item.hevyId]:e.target.checked}))}/>
                   <span>Autorizo o envio exclusivamente deste treino histórico.</span>
                 </label>
-                <button type="button" disabled={!approved[item.hevyId]||locked}
+                <button type="button" disabled={!approved[item.hevyId]||locked||!uploadsEnabled}
                   onClick={()=>void single(item,"submit")}
                   className="rounded-lg border border-teal px-3 py-2 text-sm text-teal disabled:opacity-40">
                   Enviar este treino uma vez
