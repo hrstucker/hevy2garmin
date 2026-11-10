@@ -13,6 +13,7 @@ export default async function SourceAuditPage({searchParams}:{
   let title="Auditoria de fontes",garminId="",start="",end="";
   let calories:number|null=null,exercises:{name:string;sets:number}[]=[];
   let cachedCount=0,backupCount=0,error="";
+  let manualSummary:Record<string,unknown>|null=null;
   if(!hevyId || hevyId.length>120)error="Identificador do treino inválido.";
   else try{
     const sql=getDb();
@@ -42,6 +43,12 @@ export default async function SourceAuditPage({searchParams}:{
         ]);
         cachedCount=cache?.length??0;
         backupCount=backup?.length??0;
+        const manualRows=await sql`SELECT value FROM app_cache
+          WHERE key=${"manual_watch_fit_"+hevyId} LIMIT 1`;
+        const value=manualRows[0]?.value;
+        if(value && typeof value==="object" && value.source==="manual_watch_fit" &&
+           value.hevyId===hevyId && value.garminActivityId===garminId)
+          manualSummary=value as Record<string,unknown>;
       }
     }
   }catch{
@@ -96,6 +103,12 @@ export default async function SourceAuditPage({searchParams}:{
         {manualFit==="invalid" && <p className="text-sm text-red-400">
           Selecione um arquivo .fit válido de até 16 MiB.
         </p>}
+        {manualSummary && <div className="text-xs text-text-secondary space-y-1">
+          <p>Último FIT manual auditado: {String(manualSummary.fitStartUtc??"")}</p>
+          <p>Amostras de FC encontradas: {String(manualSummary.samples??0)}</p>
+          <p>Calorias do FIT manual: {typeof manualSummary.calories==="number" ? `${manualSummary.calories} kcal` : "indisponíveis"}</p>
+          <p>SHA-256: <code className="break-all">{String(manualSummary.sha256??"")}</code></p>
+        </div>}
         <form action="/api/strava/upload-watch-fit" method="post"
           encType="multipart/form-data" className="space-y-3">
           <input type="hidden" name="hevyId" value={hevyId}/>
