@@ -23,9 +23,19 @@ async function inspect(sql:ReturnType<typeof getDb>,hevyId:string){
   const workout=workouts.find(w=>w.id===hevyId);
   if(!workout?.start_time || !historicalWorkoutEligible(workout.start_time))
     return {ready:false,code:"cutoff",error:"This is not a historical workout"};
-  const prepared=await prepareConsolidatedExport(sql,hevyId,-10800);
-  if(!prepared.ready||!prepared.payload)return {ready:false,code:"sources",
-    error:"Workout data are not ready",reasons:prepared.reasons};
+  // Audit may recover HR or confirm its genuine absence from the final Garmin FIT.
+  // A missing local cache alone is not proof that no watch was worn.
+  let prepared;
+  try{
+    prepared=await prepareConsolidatedExport(sql,hevyId,-10800,{recoverMissingHrFromGarmin:true});
+  }catch(error){
+    return {ready:false,code:"verification_pending",
+      error:"Não foi possível verificar o FIT final no Garmin. O treino não foi descartado.",
+      reasons:[error instanceof Error?error.message:"Falha na verificação da fonte Garmin"]};
+  }
+  if(!prepared.ready||!prepared.payload)return {ready:false,
+    code:prepared.reasons.some(reason=>reason.includes("heart-rate source not yet verified"))?"verification_pending":"sources",
+    error:"Treino aguardando correção ou validação de fontes",reasons:prepared.reasons};
   const token=await getStravaAccessToken();
   const epoch=Math.floor(Date.parse(prepared.payload.start_time)/1000);
   if(!Number.isFinite(epoch))throw new Error("Invalid workout timestamp");
@@ -36,7 +46,8 @@ async function inspect(sql:ReturnType<typeof getDb>,hevyId:string){
     possibleActivityIds:possible.map(a=>String(a.id))};
   return {ready:true,code:"ready",name:prepared.name,hevyId,
     startTime:prepared.payload.start_time,sets:prepared.payload.sets.length,
-    hrSamples:prepared.hrSamples,garminActivityId:prepared.garminActivityId,
+    hrSamples:prepared.hrSamples,hrVerifiedAbsent:prepared.hrVerifiedAbsent,
+    hrSource:prepared.hrSource,garminActivityId:prepared.garminActivityId,
     fingerprint:createHash("sha256").update(JSON.stringify(prepared.payload)).digest("hex"),
     prepared,token};
 }
