@@ -7,9 +7,9 @@ export const dynamic="force-dynamic";
 
 /** Human-readable read-only source audit; proxy protects this page by session. */
 export default async function SourceAuditPage({searchParams}:{
-  searchParams:Promise<{hevyId?:string}>;
+  searchParams:Promise<{hevyId?:string;manualFit?:string}>;
 }){
-  const {hevyId=""}=await searchParams;
+  const {hevyId="",manualFit=""}=await searchParams;
   let title="Auditoria de fontes",garminId="",start="",end="";
   let calories:number|null=null,exercises:{name:string;sets:number}[]=[];
   let cachedCount=0,backupCount=0,error="";
@@ -76,6 +76,40 @@ export default async function SourceAuditPage({searchParams}:{
           consultadas pelo exportador não possuem amostras recuperáveis neste momento.
           O envio ao Strava continua bloqueado.
         </p>}
+      </section>
+      <section className="rounded-xl border border-border bg-surface-elevated p-4 space-y-3">
+        <h2 className="font-semibold">FIT original do relógio</h2>
+        <p className="text-sm text-text-secondary">
+          Se a recuperação automática falhar, selecione o arquivo .fit exportado do relógio.
+          A aplicação confere a integridade do arquivo e seu horário com o treino Hevy
+          antes de incorporar qualquer medição. Não envia dados ao Garmin ou Strava.
+        </p>
+        {manualFit==="ok" && <p className="text-sm text-teal font-medium">
+          FIT validado. Frequência cardíaca extraída e armazenada no cache local.
+        </p>}
+        {manualFit==="no_hr" && <p className="text-sm text-amber-400 font-medium">
+          FIT validado sem amostras de frequência cardíaca; ausência registrada.
+        </p>}
+        {manualFit==="rejected" && <p className="text-sm text-red-400">
+          O arquivo não pôde ser validado para este treino. Nenhum dado foi incorporado.
+        </p>}
+        {manualFit==="invalid" && <p className="text-sm text-red-400">
+          Selecione um arquivo .fit válido de até 16 MiB.
+        </p>}
+        <form action="/api/strava/upload-watch-fit" method="post"
+          encType="multipart/form-data" className="space-y-3">
+          <input type="hidden" name="hevyId" value={hevyId}/>
+          <label htmlFor="watch-fit" className="block text-sm font-medium">Arquivo do relógio</label>
+          <input id="watch-fit" name="fit" type="file" accept=".fit,application/octet-stream"
+            required className="block w-full text-sm"/>
+          <button type="submit" className="rounded-lg border border-teal px-3 py-2 text-sm text-teal">
+            Auditar e recuperar dados do FIT
+          </button>
+        </form>
+        <p className="text-xs text-text-secondary">
+          A identidade é conferida pelo início da atividade; o ID Garmin Connect não
+          é provado apenas pelo nome do arquivo. A origem fica registrada separadamente.
+        </p>
       </section>
       <section className="rounded-xl border border-border bg-surface-elevated p-4">
         <h2 className="font-semibold mb-3">Exercícios do Hevy</h2>
