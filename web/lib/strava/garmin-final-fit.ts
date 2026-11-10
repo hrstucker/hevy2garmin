@@ -11,8 +11,8 @@ export type GarminFitHrPoint={time:number;hr:number};
 export interface GarminFinalFit {
   samples:GarminFitHrPoint[];
   calories:number|null;
-  firstSampleUtc:string;
-  lastSampleUtc:string;
+  firstSampleUtc:string|null;
+  lastSampleUtc:string|null;
 }
 const MAX_ZIP_BYTES=8*1024*1024;
 const MAX_FIT_BYTES=16*1024*1024;
@@ -93,10 +93,12 @@ export function decodeGarminFinalFit(
   const root=obj(messages);
   const records=Array.isArray(root.recordMesgs)?root.recordMesgs:[];
   const points:{absolute:number;hr:number}[]=[];
+  let sourceHrCount=0;
   for(const raw of records){
     const r=obj(raw);
     const at=timestampMs(r.timestamp);
     const hr=r.heartRate;
+    if(typeof hr==="number" && Number.isInteger(hr) && hr>=1 && hr<=255)sourceHrCount++;
     if(at===null || typeof hr!=="number" || !Number.isInteger(hr) || hr<1 || hr>255)continue;
     // Tight validation against Hevy time, not inferred from device time.
     if(at<start || at>end)continue;
@@ -104,16 +106,22 @@ export function decodeGarminFinalFit(
   }
   points.sort((a,b)=>a.absolute-b.absolute);
   const unique=points.filter((p,i)=>i===0 || p.absolute!==points[i-1].absolute);
-  if(unique.length<10)throw new Error("No adequate timestamped HR in final Garmin FIT");
+  // A valid FIT with zero actual HR readings is a legitimate no-watch workout.
+  // If HR exists outside the expected Hevy window or is too sparse, do not
+  // mistakenly classify a time-alignment/quality failure as absence of HR.
+  if(sourceHrCount>0 && unique.length<10)
+    throw new Error("Garmin FIT has HR but insufficient aligned timestamped samples");
   const sessions=Array.isArray(root.sessionMesgs)?root.sessionMesgs:[];
+  if(sourceHrCount===0 && !records.length && !sessions.length)
+    throw new Error("Garmin FIT has no usable activity records or session");
   const session=sessions.length===1?obj(sessions[0]):{};
   const caloriesRaw=session.totalCalories;
   const calories=typeof caloriesRaw==="number" && Number.isInteger(caloriesRaw) &&
     caloriesRaw>=0 && caloriesRaw<10000?caloriesRaw:null;
   return {
     samples:unique.map(p=>({time:Number(((p.absolute-start)/1000).toFixed(3)),hr:p.hr})),
-    calories,firstSampleUtc:new Date(unique[0].absolute).toISOString(),
-    lastSampleUtc:new Date(unique[unique.length-1].absolute).toISOString()
+    calories,firstSampleUtc:unique.length?new Date(unique[0].absolute).toISOString():null,
+    lastSampleUtc:unique.length?new Date(unique[unique.length-1].absolute).toISOString():null
   };
 }
 

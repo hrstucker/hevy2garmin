@@ -20,7 +20,13 @@ describe("Strava strength JSON",()=>{
    expect(out.total_calories).toBe(503);
  });
  it("rejects unmapped exercises",()=>expect(()=>buildStrengthJson({...example,exerciseTypes:{}})).toThrow("Unmapped"));
- it("rejects missing HR",()=>expect(()=>buildStrengthJson({...example,hrSamples:[]})).toThrow("heart-rate"));
+ it("keeps measured sets when HR is verified absent and omits optional streams",()=>{
+   const out=buildStrengthJson({...example,hrSamples:[]});
+   expect(out.sets).toHaveLength(1);
+   expect(out).not.toHaveProperty("streams");
+   expect(out.elapsed_time).toBe(5950);
+ });
+ it("rejects invalid HR collection",()=>expect(()=>buildStrengthJson({...example,hrSamples:null as unknown as StrengthInput["hrSamples"]})).toThrow("heart-rate"));
  it("rejects invalid time offsets",()=>expect(()=>buildStrengthJson({...example,utcOffsetSeconds:999999})).toThrow("offset"));
  it("rejects dates without timezone",()=>expect(()=>buildStrengthJson({...example,startTime:"2026-10-29T20:50:00"})).toThrow("timezone"));
  it("rejects HR timestamps beyond the duration",()=>expect(()=>buildStrengthJson({...example,hrSamples:[{time:6000,hr:99}]})).toThrow("heart-rate"));
