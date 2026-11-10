@@ -41,7 +41,7 @@ export async function POST(request:Request){
       hevyId,garminActivityId:String(sync.garmin_activity_id),workout
     });
     console.info("[strava-recovery] cached final Garmin FIT HR",hevyId,recovered.samples);
-    back.searchParams.set("recovery","ok");
+    back.searchParams.set("recovery",recovered.samples>0?"ok":"no_hr");
   }catch(e){
     console.error("[strava-recovery] failed",hevyId,e instanceof Error?e.message:"unknown");
     back.searchParams.set("recovery","failed");
