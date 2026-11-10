@@ -7,7 +7,7 @@ import {HistoricalReview,type HistoricalItem} from "@/components/strava-historic
 export const dynamic="force-dynamic";
 /** Read-only queue: never schedules historical uploads. */
 export default async function HistoricalStravaPage(){
-  let items:HistoricalItem[]=[];
+  const items:HistoricalItem[]=[];
   let error="";
   try{
     const sql=getDb();
