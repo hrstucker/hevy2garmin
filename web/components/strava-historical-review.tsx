@@ -21,6 +21,8 @@ const textError=(r:Audit)=>[r.error??"Auditoria bloqueada",...(r.reasons??[])].j
  */
 export function HistoricalReview({items}:{items:HistoricalItem[]}){
   const [reports,setReports]=useState<Record<string,Audit>>({});
+  const [approved,setApproved]=useState<Record<string,boolean>>({});
+  const [auditComplete,setAuditComplete]=useState(false);
   const [busy,setBusy]=useState<string|null>(null);
   const [bulkMode,setBulkMode]=useState<"idle"|"auditing"|"sending">("idle");
   const [bulkText,setBulkText]=useState("");
@@ -73,6 +75,7 @@ export function HistoricalReview({items}:{items:HistoricalItem[]}){
   async function auditAll(){
     if(runLock.current)return;
     runLock.current=true;setBulkMode("auditing");setBulkApproved(false);
+    setAuditComplete(false);setOutcomes({});setReports({});
     setBulkText("Iniciando auditoria de treinos históricos…");
     const next:Record<string,Audit>={};
     const state:Record<string,Outcome>={};
@@ -102,6 +105,7 @@ export function HistoricalReview({items}:{items:HistoricalItem[]}){
         }
       }
       const ready=Object.values(next).filter(r=>r.ready).length;
+      setAuditComplete(true);
       setBulkText(`Auditoria concluída: ${ready} prontos, ${candidates.length-ready} bloqueados ou pendentes e ${items.length-candidates.length} já registrados no Strava. Confira os resultados antes do envio.`);
     }finally{
       runLock.current=false;setBulkMode("idle");
@@ -109,7 +113,7 @@ export function HistoricalReview({items}:{items:HistoricalItem[]}){
   }
 
   async function sendAll(){
-    if(runLock.current||!bulkApproved)return;
+    if(runLock.current||!bulkApproved||!auditComplete)return;
     const selected=items.filter(i=>!i.ledgerStatus&&outcomes[i.hevyId]==="ready"&&reports[i.hevyId]?.ready&&reports[i.hevyId]?.fingerprint);
     if(!selected.length)return;
     runLock.current=true;setBulkMode("sending");setBulkApproved(false);
@@ -164,7 +168,7 @@ export function HistoricalReview({items}:{items:HistoricalItem[]}){
   }
 
   const eligible=items.filter(i=>!i.ledgerStatus);
-  const ready=eligible.filter(i=>outcomes[i.hevyId]==="ready"&&reports[i.hevyId]?.ready&&reports[i.hevyId]?.fingerprint);
+  const ready=eligible.filter(i=>auditComplete&&outcomes[i.hevyId]==="ready"&&reports[i.hevyId]?.ready&&reports[i.hevyId]?.fingerprint);
   const confirmed=items.filter(i=>i.ledgerStatus==="ready").length;
   const locked=bulkMode!=="idle"||busy!==null;
   return <div className="space-y-4">
@@ -184,7 +188,7 @@ export function HistoricalReview({items}:{items:HistoricalItem[]}){
         Após a auditoria: <strong>{ready.length} prontos</strong> para uma possível importação.
         Treinos bloqueados ou já registrados nunca entram no lote.
       </div>
-      {ready.length>0 && bulkMode!=="auditing" && <div className="space-y-3 border-t border-border pt-3">
+      {auditComplete && ready.length>0 && bulkMode!=="auditing" && <div className="space-y-3 border-t border-border pt-3">
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" checked={bulkApproved} disabled={locked}
             onChange={e=>setBulkApproved(e.target.checked)}/>
