@@ -11,7 +11,7 @@ import {fetchGarminFinalFit} from "./garmin-final-fit";
 type Sql=ReturnType<typeof getDb>;
 export type RecoveryResult={
   samples:number;garminActivityId:string;calories:number|null;
-  source:"garmin_final_fit";firstSampleUtc:string;lastSampleUtc:string;
+  source:"garmin_final_fit";firstSampleUtc:string|null;lastSampleUtc:string|null;
 };
 
 export async function recoverAndCacheFinalGarminHr(sql:Sql,input:{
