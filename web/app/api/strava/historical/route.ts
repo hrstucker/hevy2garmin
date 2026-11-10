@@ -4,6 +4,7 @@ import {cookies} from "next/headers";
 import {authEnabled,verifySession,SESSION_COOKIE} from "@/lib/auth";
 import {getSessionEpoch} from "@/lib/session-epoch";
 import {getDb} from "@/lib/db";
+import {fetchAllWorkouts} from "@/lib/hevy-sync";
 import {getStravaAccessToken} from "@/lib/strava/authenticated-client";
 import {findPossibleStrengthDuplicates,listStravaActivities} from "@/lib/strava/activity-client";
 import {prepareConsolidatedExport} from "@/lib/strava/prepare-export";
@@ -18,9 +19,11 @@ async function inspect(sql:ReturnType<typeof getDb>,hevyId:string){
   const existing=await getStravaUpload(sql,hevyId);
   if(existing)return {ready:false,code:"ledger",error:"Existing Strava upload/reservation; manual reconciliation required",
     status:existing.status,activityId:existing.activity_id};
-  const prepared=await prepareConsolidatedExport(sql,hevyId,-10800);
-  if(!historicalWorkoutEligible(prepared.payload?.start_time??""))
+  const workouts=await fetchAllWorkouts();
+  const workout=workouts.find(w=>w.id===hevyId);
+  if(!workout?.start_time || !historicalWorkoutEligible(workout.start_time))
     return {ready:false,code:"cutoff",error:"This is not a historical workout"};
+  const prepared=await prepareConsolidatedExport(sql,hevyId,-10800);
   if(!prepared.ready||!prepared.payload)return {ready:false,code:"sources",
     error:"Workout data are not ready",reasons:prepared.reasons};
   const token=await getStravaAccessToken();
