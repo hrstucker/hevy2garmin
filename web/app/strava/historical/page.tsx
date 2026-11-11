@@ -3,6 +3,7 @@ import {getDb} from "@/lib/db";
 import {fetchAllWorkouts,type HevyWorkout} from "@/lib/hevy-sync";
 import {historicalWorkoutEligible} from "@/lib/strava/historical-policy";
 import {HistoricalReview,type HistoricalItem} from "@/components/strava-historical-review";
+import {StravaDescriptionCleanup} from "@/components/strava-description-cleanup";
 
 export const dynamic="force-dynamic";
 /** Read-only queue: never schedules historical uploads. */
@@ -50,6 +51,7 @@ export default async function HistoricalStravaPage(){
         ?"Importação histórica habilitada neste deployment. A auditoria não envia atividades."
         :"Importação histórica desabilitada neste deployment. É possível auditar sem enviar."}
     </p>
+    <StravaDescriptionCleanup/>
     {error?<p className="text-red-400">{error}</p>:
       <HistoricalReview items={items} uploadsEnabled={process.env.STRAVA_HISTORICAL_UPLOADS_ENABLED==="true"}/>}
   </main>;
