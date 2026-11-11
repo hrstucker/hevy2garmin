@@ -98,7 +98,7 @@ export async function POST(request:Request){
       const receipt=await submitStrengthJson({
         accessToken:result.token!,hevyWorkoutId:hevyId,workout:result.prepared!.payload!,
         name:result.name!,
-        description:"Treino histórico Hevy + Garmin, importado individualmente após auditoria. Hevy2Garmin."
+        description:""
       });
       const updated=await markStravaSubmitted(sql,hevyId,receipt.id);
       if(!updated)return NextResponse.json({error:"Strava accepted upload, but ledger update needs manual reconciliation"},{status:503});
