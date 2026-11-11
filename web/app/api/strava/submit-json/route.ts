@@ -85,7 +85,7 @@ export async function POST(request:Request) {
       const receipt=await submitStrengthJson({
         accessToken:token,hevyWorkoutId:hevyId,workout:prepared.payload,
         name:prepared.name,
-        description:"Treino consolidado do Hevy com frequência cardíaca Garmin. Enviado por Hevy2Garmin.",
+        description:"",
       });
       const updated=await markStravaSubmitted(sql,hevyId,receipt.id);
       if(!updated)
