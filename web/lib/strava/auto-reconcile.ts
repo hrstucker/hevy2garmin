@@ -104,7 +104,7 @@ export async function autoReconcileStrava(sql:Sql=getDb()):Promise<AutoReconcile
       const receipt=await submitStrengthJson({
         accessToken:token,hevyWorkoutId:hevyId,workout:prepared.payload,
         name:prepared.name,
-        description:"Treino Hevy com séries, cargas e frequência cardíaca Garmin. Consolidado por Hevy2Garmin.",
+        description:"",
       });
       const updated=await markStravaSubmitted(sql,hevyId,receipt.id);
       if(!updated)return {mode:"blocked",hevyId,
