@@ -18,8 +18,8 @@ export interface StravaActivityCandidate {
 
 /** Prefer exact id_str. Never stringify unsafe JSON numeric IDs. */
 export function exactStravaId(value:unknown,idStr?:unknown):string|null {
-  if(typeof idStr==="string" && /^[0-9]+$/.test(idStr) && BigInt(idStr)>0n) return idStr;
-  if(typeof value==="string" && /^[0-9]+$/.test(value) && BigInt(value)>0n) return value;
+  if(typeof idStr==="string" && /^[0-9]+$/.test(idStr) && /[1-9]/.test(idStr)) return idStr;
+  if(typeof value==="string" && /^[0-9]+$/.test(value) && /[1-9]/.test(value)) return value;
   if(typeof value==="number" && Number.isSafeInteger(value) && value>0) return String(value);
   return null;
 }
