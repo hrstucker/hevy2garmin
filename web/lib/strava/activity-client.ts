@@ -8,12 +8,20 @@
 const API = "https://www.strava.com/api/v3";
 
 export interface StravaActivityCandidate {
-  id: number;
+  id: string;
   start_date: string;
   elapsed_time: number;
   name: string;
   device_name?: string | null;
   sport_type?: string | null;
+}
+
+/** Prefer exact id_str. Never stringify unsafe JSON numeric IDs. */
+export function exactStravaId(value:unknown,idStr?:unknown):string|null {
+  if(typeof idStr==="string" && /^[0-9]+$/.test(idStr) && /[1-9]/.test(idStr)) return idStr;
+  if(typeof value==="string" && /^[0-9]+$/.test(value) && /[1-9]/.test(value)) return value;
+  if(typeof value==="number" && Number.isSafeInteger(value) && value>0) return String(value);
+  return null;
 }
 
 interface StravaTokenResponse {
@@ -67,7 +75,16 @@ export async function listStravaActivities(input: {
     cache: "no-store",
   });
   await requireOk(response, "activity lookup");
-  return (await response.json()) as StravaActivityCandidate[];
+  const body:unknown=await response.json();
+  if(!Array.isArray(body))throw new Error("Invalid Strava activities response");
+  return body.map((value:unknown)=>{
+    if(!value||typeof value!=="object"||Array.isArray(value))
+      throw new Error("Invalid Strava activity item");
+    const row=value as Record<string,unknown>;
+    const id=exactStravaId(row.id,row.id_str);
+    if(!id)throw new Error("Strava activity ID cannot be represented safely");
+    return {...row,id} as unknown as StravaActivityCandidate;
+  });
 }
 
 /**
@@ -91,17 +108,18 @@ export function matchByStartAndDuration(
 
 export async function updateStravaActivityMetadata(input: {
   accessToken: string;
-  stravaActivityId: number;
+  stravaActivityId: string | number;
   name: string;
   description: string;
 }): Promise<void> {
-  if (!Number.isSafeInteger(input.stravaActivityId) || input.stravaActivityId <= 0) {
+  const exactId=exactStravaId(input.stravaActivityId);
+  if (!exactId) {
     throw new Error("Invalid Strava activity ID");
   }
   if (!input.name.trim() || !input.description.trim()) {
     throw new Error("Strava name and description cannot be empty");
   }
-  const response = await fetch(`${API}/activities/${input.stravaActivityId}`, {
+  const response = await fetch(`${API}/activities/${exactId}`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${input.accessToken}`,
