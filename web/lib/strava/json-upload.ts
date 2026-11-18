@@ -13,7 +13,7 @@ export type UploadReceipt = {
   status: string; error: string | null; activity_id: string | null;
 };
 
-function safeId(value: unknown): string | null {
+export function safeId(value: unknown): string | null {
   if (typeof value === "string" && /^\d+$/.test(value)) return value;
   if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return String(value);
   return null;
@@ -26,7 +26,7 @@ function receipt(raw: unknown): UploadReceipt {
     id, external_id: typeof data.external_id === "string" ? data.external_id : null,
     status: typeof data.status === "string" ? data.status : "",
     error: typeof data.error === "string" ? data.error : null,
-    activity_id: safeId(data.activity_id),
+    activity_id: safeId(data.activity_id_str) ?? safeId(data.activity_id),
   };
 }
 export async function submitStrengthJson(input: {
