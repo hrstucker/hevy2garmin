@@ -108,17 +108,18 @@ export function matchByStartAndDuration(
 
 export async function updateStravaActivityMetadata(input: {
   accessToken: string;
-  stravaActivityId: string;
+  stravaActivityId: string | number;
   name: string;
   description: string;
 }): Promise<void> {
-  if (!exactStravaId(input.stravaActivityId)) {
+  const exactId=exactStravaId(input.stravaActivityId);
+  if (!exactId) {
     throw new Error("Invalid Strava activity ID");
   }
   if (!input.name.trim() || !input.description.trim()) {
     throw new Error("Strava name and description cannot be empty");
   }
-  const response = await fetch(`${API}/activities/${input.stravaActivityId}`, {
+  const response = await fetch(`${API}/activities/${exactId}`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${input.accessToken}`,
