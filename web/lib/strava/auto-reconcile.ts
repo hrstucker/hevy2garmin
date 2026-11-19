@@ -20,7 +20,8 @@ export type AutoReconcileResult={
   hevyId?:string;status?:string;reason?:string;uploadId?:string;activityId?:string;
 };
 
-export async function autoReconcileStrava(sql:Sql=getDb()):Promise<AutoReconcileResult>{
+export async function autoReconcileStrava(sql:Sql=getDb(),targetHevyId?:string):Promise<AutoReconcileResult>{
+  if(targetHevyId && (!/^[a-zA-Z0-9-]{1,120}$/.test(targetHevyId)))return {mode:"blocked",reason:"Invalid workout identifier"};
   const policy=autoStravaConfig(process.env);
   if(policy.error)return {mode:"error",reason:policy.error};
   if(!policy.enabled || !policy.cutoff)return {mode:"disabled"};
@@ -51,7 +52,7 @@ export async function autoReconcileStrava(sql:Sql=getDb()):Promise<AutoReconcile
       AND s.synced_at >= ${cutoff}::timestamptz
       AND NOT EXISTS (SELECT 1 FROM strava_uploads u WHERE u.hevy_id=s.hevy_id)
     ORDER BY s.synced_at ASC LIMIT 30`;
-  if(!rows.length)return {mode:"idle"};
+  if(!rows.length)return {mode:"idle",reason:"No eligible Garmin-synced workout found"};
 
   const nowMs=Date.now();
   // Batch fetch only once, then verify the exact corresponding workout.
@@ -59,6 +60,7 @@ export async function autoReconcileStrava(sql:Sql=getDb()):Promise<AutoReconcile
   const byId=new Map((workouts as HevyWorkout[]).map(w=>[w.id,w]));
   for(const row of rows){
     const hevyId=String(row.hevy_id);
+    if(targetHevyId && hevyId!==targetHevyId)continue;
     const w=byId.get(hevyId);
     const syncedAt=row.synced_at instanceof Date?row.synced_at.toISOString():String(row.synced_at??"");
     if(!w || !eligibleAutoStravaWorkout({
@@ -78,7 +80,10 @@ export async function autoReconcileStrava(sql:Sql=getDb()):Promise<AutoReconcile
       console.error("[strava-auto] preparation failed for",hevyId,e instanceof Error?e.message:"unknown");
       continue;
     }
-    if(!prepared.ready || !prepared.payload)continue;
+    if(!prepared.ready || !prepared.payload){
+      if(targetHevyId)return {mode:"blocked",hevyId,reason:prepared.reasons.join("; ") || "Consolidated export not ready"};
+      continue;
+    }
 
     const token=await getStravaAccessToken();
     const started=Math.floor(Date.parse(prepared.payload.start_time)/1000);
@@ -117,5 +122,5 @@ export async function autoReconcileStrava(sql:Sql=getDb()):Promise<AutoReconcile
         reason:"Submission outcome unknown; automatic retry forbidden"};
     }
   }
-  return {mode:"idle"};
+  return {mode:"idle",hevyId:targetHevyId,reason:targetHevyId?"Workout not eligible, absent from recent candidates, or already recorded":undefined};
 }
