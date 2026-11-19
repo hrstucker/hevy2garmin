@@ -1,4 +1,5 @@
 import Link from "next/link";
+import {RecoverPendingForm} from "@/components/strava-recover-pending";
 import { getDb } from "@/lib/db";
 import { autoStravaConfig } from "@/lib/strava/auto-policy";
 
@@ -80,6 +81,7 @@ export default async function StravaPage({ searchParams }: {
         Revisar e salvar mapeamentos Strava
       </Link>
     </div>
+    <RecoverPendingForm />
     <Link href="/settings" className="text-sm text-text-secondary underline">Configurações</Link>
   </main>;
 }
